@@ -2,8 +2,7 @@
 #
 #  gxdhtload.config
 #
-#  This file sets up environment variables that are needed for the
-#  GXD High Throughput Raw data load
+#  This file sets up environment variables that are needed  for the gxdhtload
 #
 ###########################################################################
 
@@ -25,4 +24,62 @@ fi
 
 . ${MGICONFIG}/master.config.sh
 
+###########################################################################
+#
+#  LOAD SPECIFIC SETTINGS
+#
+###########################################################################
 
+#  Path name of the archive, logs, reports and output directories
+FILEDIR=${DATALOADSOUTPUT}/mgi/gxdhtload
+ARCHIVEDIR=${FILEDIR}/archive
+LOGDIR=${FILEDIR}/logs
+RPTDIR=${FILEDIR}/reports
+OUTPUTDIR=${FILEDIR}/output
+
+# directory where input files are created 
+INPUTDIR=${FILEDIR}/input
+INFILE_NAME=${DATADOWNLOADS}/???
+QCFILE_NAME=${RPTDIR}/gxdhtload_qc.rpt
+
+export FILEDIR ARCHIVEDIR LOGDIR RPTDIR OUTPUTDIR INPUTDIR INFILE_NAME
+export QCFILE_NAME
+
+#  Complete path name of the log files
+LOG_FILE=${LOGDIR}/gxdhtload.log
+LOG_PROC=${LOGDIR}/gxdhtload.proc.log
+LOG_DIAG=${LOGDIR}/gxdhtload.diag.log
+LOG_CUR=${LOGDIR}/gxdhtload.cur.log
+LOG_VAL=${LOGDIR}/gxdhtload.val.log
+
+export LOG_FILE LOG_PROC LOG_DIAG LOG_CUR LOG_VAL LOG_DEBUG
+
+# load reference
+JNUM=J:????
+
+#  Send debug messages to the diagnostic log (true or false)
+LOG_DEBUG=false
+
+export JNUM LOG_DEBUG
+
+#  The name of the job stream for the load
+JOBSTREAM=gxdhtload
+
+export JOBSTREAM
+
+###########################################################################
+#
+#  MISCELLANEOUS SETTINGS
+#
+###########################################################################
+
+#  The name of the load for the subject of an email notification
+MAIL_LOADNAME="GXD HT load"
+
+#  Recipient list for mailing the log files (comma-separated)
+MAIL_LOG_PROC="mgiadmin"
+
+export MAIL_LOADNAME MAIL_LOG_PROC
+
+INSTALLDIR=${GXDHTLOAD}
+export INSTALLDIR
