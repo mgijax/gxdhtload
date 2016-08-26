@@ -36,10 +36,11 @@ ARCHIVEDIR=${FILEDIR}/archive
 LOGDIR=${FILEDIR}/logs
 RPTDIR=${FILEDIR}/reports
 OUTPUTDIR=${FILEDIR}/output
-
-# directory where input files are created 
 INPUTDIR=${FILEDIR}/input
-INFILE_NAME=${DATADOWNLOADS}/???
+
+# input/output
+INFILE_NAME=${DATADOWNLOADS}/www.ebi.ac.uk/arrayexpress.json
+#INFILE_NAME=${INPUTDIR}/2016.json.test
 QCFILE_NAME=${RPTDIR}/gxdhtload_qc.rpt
 
 export FILEDIR ARCHIVEDIR LOGDIR RPTDIR OUTPUTDIR INPUTDIR INFILE_NAME
@@ -52,15 +53,12 @@ LOG_DIAG=${LOGDIR}/gxdhtload.diag.log
 LOG_CUR=${LOGDIR}/gxdhtload.cur.log
 LOG_VAL=${LOGDIR}/gxdhtload.val.log
 
-export LOG_FILE LOG_PROC LOG_DIAG LOG_CUR LOG_VAL LOG_DEBUG
-
-# load reference
-JNUM=J:????
+export LOG_FILE LOG_PROC LOG_DIAG LOG_CUR LOG_VAL
 
 #  Send debug messages to the diagnostic log (true or false)
 LOG_DEBUG=false
 
-export JNUM LOG_DEBUG
+export LOG_DEBUG
 
 #  The name of the job stream for the load
 JOBSTREAM=gxdhtload
