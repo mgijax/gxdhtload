@@ -171,20 +171,26 @@ def process():
             bibliography = f['bibliography'] # propery, many stored individually
         except:
             bibliography = ''
-
+	try:
+	    id = f['id'] #for reporting when no accession
+	except:
+	    id = ''
 	# Do QC checks
 	if primaryID == '':
 	    noIdList.append('Name: %s' % name)
+	    continue
 	else:
 	    checkPrimaryId(primaryID)
 
 	# check that sample is integer
 	# 8/26 samples not currently data attribute
+	#print 'primaryID: %s sampleCount: %s isInt: %s' % (primaryID, sampleCount, checkInteger(sampleCount))
 	if sampleCount and checkInteger(sampleCount)== 0:
 	    invalidSampleCountDict[primaryID] = sampleCount
 
 	# check dates
         #print 'check releasedate'
+	#print 'primaryID: %s' % primaryID
         if releasedate != '' and checkDate(releasedate) == 0:
 	    #print 'adding %s to invalidReleaseDateDict' % releasedate
 	    invalidReleaseDateDict[primaryID] = releasedate
@@ -270,12 +276,15 @@ def checkInteger(rawText):
     return 0
 
 def checkDate(rawText):
+    if rawText.find(',') > -1:
+	return 0
     # yyyy-mm-dd format
     ymd = re.compile('([0-9]{4})-([0-9]{2})-([0-9]{2})')
     ymdMatch = ymd.match(rawText)
     #print 'checkdate: %s' % rawText
     if ymdMatch:
 	(year, month, day) = ymdMatch.groups()
+	#print 'year: %s month: %s day %s' % (year, month, day)
 	if (1950 <= int(year) <= 2050):
 	    if (1 <= int(month) <= 12):
 		if (1 <= int(day) <= 31):
