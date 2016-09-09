@@ -39,12 +39,30 @@ OUTPUTDIR=${FILEDIR}/output
 INPUTDIR=${FILEDIR}/input
 
 # input/output
-INFILE_NAME=${DATADOWNLOADS}/www.ebi.ac.uk/arrayexpress.json
-#INFILE_NAME=${INPUTDIR}/2016.json.test
+#INFILE_NAME=${DATADOWNLOADS}/www.ebi.ac.uk/arrayexpress.json
+INFILE_NAME=/mgi/all/wts_projects/12300/12370/ArrayExpressData/all.experiments.v2.json # all.restrictExptType.mus.json
+#INFILE_NAME=/mgi/all/wts_projects/12300/12370/testing/US23_testing/US23_mockJSON.json
+#INFILE_NAME=/mgi/all/wts_projects/12300/12370/testing/US23_testing/US23_mock_json2.json
+
 QCFILE_NAME=${RPTDIR}/gxdhtload_qc.rpt
 
 export FILEDIR ARCHIVEDIR LOGDIR RPTDIR OUTPUTDIR INPUTDIR INFILE_NAME
 export QCFILE_NAME
+
+# BCP file names
+EXPERIMENT_FILENAME=GXD_HTExperiment.bcp
+ACC_FILENAME=ACC_Accession.bcp
+VARIABLE_FILENAME=GXD_HTExperimentVariable.bcp
+PROPERTY_FILENAME=MGI_Property.bcp
+export EXPERIMENT_FILENAME VARIABLE_FILENAME PROPERTY_FILENAME
+
+# Full paths to bcp files
+EXPERIMENT_BCP=${OUTPUTDIR}/${EXPERIMENT_FILENAME}
+ACC_BCP=${OUTPUTDIR}/${ACC_FILENAME}
+VARIABLE_BCP=${OUTPUTDIR}/${VARIABLE_FILENAME}
+PROPERTY_BCP=${OUTPUTDIR}/${PROPERTY_FILENAME}
+
+export EXPERIMENT_BCP ACC_BCP VARIABLE_BCP PROPERTY_BCP
 
 #  Complete path name of the log files
 LOG_FILE=${LOGDIR}/gxdhtload.log
