@@ -52,6 +52,12 @@ COMMON_CONFIG=gxdhtload.config
 USAGE="Usage: gxdhtload.sh"
 
 #
+# BCP delimiters
+#
+COLDELIM="\t"
+LINEDELIM="\n"
+
+#
 #  Verify the argument(s) to the shell script.
 #
 if [ $# -ne 0 ]
@@ -125,6 +131,62 @@ echo 'Running gxdhtload.py'  | tee -a ${LOG_DIAG}
 ${GXDHTLOAD}/bin/gxdhtload.py #>> ${LOG_DIAG}
 STAT=$?
 checkStatus ${STAT} "${GXDHTLOAD}/bin/gxdhtload.py"
+
+#
+# Do BCP
+#
+TABLE=GXD_HTExperiment
+echo "BCPing ${OUTPUTDIR}/${TABLE}.bcp" >> ${LOG_DIAG}
+
+if [ -s "${OUTPUTDIR}/${TABLE}.bcp" ]
+then
+
+    echo "" >> ${LOG_DIAG}
+    date >> ${LOG_DIAG}
+    echo 'BCP data into %s' % ${TABLE}  >> ${LOG_DIAG}
+
+    # BCP new data
+    ${PG_DBUTILS}/bin/bcpin.csh ${MGD_DBSERVER} ${MGD_DBNAME} ${TABLE} ${OUTPUTDIR} ${TABLE}.bcp ${COLDELIM} ${LINEDELIM} >> ${LOG_DIAG}
+fi
+
+TABLE=ACC_Accession
+
+if [ -s "${OUTPUTDIR}/${TABLE}.bcp" ]
+then
+
+    echo "" >> ${LOG_DIAG}
+    date >> ${LOG_DIAG}
+    echo 'BCP data into %s' % ${TABLE}  >> ${LOG_DIAG}
+
+    # BCP new data
+    ${PG_DBUTILS}/bin/bcpin.csh ${MGD_DBSERVER} ${MGD_DBNAME} ${TABLE} ${OUTPUTDIR} ${TABLE}.bcp ${COLDELIM} ${LINEDELIM} >> ${LOG_DIAG}
+fi
+
+TABLE=GXD_HTExperimentVariable
+
+if [ -s "${OUTPUTDIR}/${TABLE}.bcp" ]
+then
+
+    echo "" >> ${LOG_DIAG}
+    date >> ${LOG_DIAG}
+    echo 'BCP data into %s' % ${TABLE}  >> ${LOG_DIAG}
+
+    # BCP new data
+    ${PG_DBUTILS}/bin/bcpin.csh ${MGD_DBSERVER} ${MGD_DBNAME} ${TABLE} ${OUTPUTDIR} ${TABLE}.bcp ${COLDELIM} ${LINEDELIM} >> ${LOG_DIAG}
+fi
+
+TABLE=MGI_Property
+
+if [ -s "${OUTPUTDIR}/${TABLE}.bcp" ]
+then
+
+    echo "" >> ${LOG_DIAG}
+    date >> ${LOG_DIAG}
+    echo 'BCP data into %s' % ${TABLE}  >> ${LOG_DIAG}
+
+    # BCP new data
+    ${PG_DBUTILS}/bin/bcpin.csh ${MGD_DBSERVER} ${MGD_DBNAME} ${TABLE} ${OUTPUTDIR} ${TABLE}.bcp ${COLDELIM} ${LINEDELIM} >> ${LOG_DIAG}
+fi
 
 #
 # run postload cleanup and email logs
