@@ -37,6 +37,8 @@ AEGEOPREFIX = 'E-GEOD-'
 # GEO primary ID prefix for experiments
 GEOPREFIX = 'GSE'
 
+SUPERSERIES='This SuperSeries is composed of the SubSeries listed below.'
+
 # today's date
 loadDate = loadlib.loaddate
 
@@ -68,7 +70,11 @@ exptVariableTermKey = 20475439
 
 # For GXD_HTExperiment:
 # 'Not Evaluated' from 'GXD HT Evaluation State' (vocab key = 116) 
-evalStateTermKey = 20225941 
+defaultEvalStateTermKey = 20225941 
+
+# When SUPERSERIES appears in description
+# 'No' from  'GXD HT Evaluation State' (vocab key = 116)
+altEvalStateTermKey=20225943
 
 # 'Not Curated' from GXD HT Curation State' (vocab key=117)
 curStateTermKey = 20475421
@@ -81,6 +87,9 @@ exptTypeNRKey = 20475438
 
 # 'ArrayExpress' from 'GXD HT Source' (vocab key = 119)
 sourceKey = 20475431  
+
+# Property keys
+#namePropKey = 
 
 # value for evaluation date, initial curated date and last curated date
 # evaluated by, initial curated by, last curated by
@@ -109,6 +118,13 @@ fpVariableBcp =  None
 
 propertyFileName = os.environ['PROPERTY_BCP']
 fpPropertyBcp = None
+expTypePropKey = 20475425
+expFactorPropKey = 20475423
+sampleCountPropKey = 20475424
+contactNamePropKey = 20475426
+namePropKey = 20475428
+pubmedPropKey =	20475430 
+propTypeKey = 1002
 
 # Number or experiments in AE json file
 expCount = 0
@@ -332,36 +348,44 @@ def calculateGeoId(primaryID):
 def process():
     global propertiesDict, expCount, loadedCount, skippedCount, invalidSampleCountDict
     global invalidReleaseDateDict, invalidUpdateDateDict, noIdList
-    global nextExptKey, nextAccKey, nextExptVarKey,nextPropKey
+    global nextExptKey, nextAccKey, nextExptVarKey, nextPropKey
     
     for f in jFile['experiments']['experiment']:
         expCount += 1
+	evalStateToUseKey = defaultEvalStateTermKey
 	print 'Expt# %s' % expCount
 	try:
-            description = f['description']['text'] # experiment, one
+	    allDescription =  f['description']
+	    print 'allDescription: %s' % allDescription
+	    print 'allDescription type: %s' % type(allDescription)
+            description = allDescription['text'] # experiment, onea
+	    print 'description text: %s' % description
+	    print 'description text type: %s' % type(description)
 	    if type(description) ==  types.ListType:
 		description = description[0]
-	    else: # could be NoneType
-		description = None
 	except:
-    	    description = None
-	print 'description: %s' % description
+    	    description = ''
+	if description == None: #  {'text': None, 'id': None}
+	    description = ''
+	description = string.strip(description)
+	if description.find(SUPERSERIES) != -1:
+                    evalStateToUseKey = altEvalStateTermKey
+	print 'final description: %s' % description
 	# replace any escapes
 	#description.replace('\\/', '//')
-	print 'description type: %s' % type(description)
-	#print 'description find escape: %s' % description.find('\\\/')
-	#if description.find('C57BL') != -1:
-	#    print 'found C57BL'
+	print 'final description type: %s' % type(description)
+
 	try:
 	    name = f['name'] # experiment and property, many; |-delim in both
 	    if type(name) == types.ListType:
 		name = '|'.join(name)
 	except:
 	    name = ''
+	name = string.strip(name)
 	print 'name: %s' % name
 
 	try:
-	    primaryID = f['accession'] # accession
+	    primaryID = string.strip(f['accession']) # accession
 	except:
 	    primaryID = ''
 	print 'primaryID: %s' % primaryID
@@ -478,7 +502,7 @@ def process():
 	    line = line + TAB
 	# evaluated_date is null
 	line = line + TAB
-	line = line + str(evalStateTermKey) + TAB
+	line = line + str(evalStateToUseKey) + TAB
 	line = line + str(curStateTermKey) + TAB
 	line = line + str(studyTypeTermKey) + TAB
 	line = line + str(exptTypeKey) + TAB
@@ -489,7 +513,6 @@ def process():
 	# creation and modification date
 	line = line + loadDate + TAB + loadDate + CRT
 	fpExperimentBcp.write(line)
-	#fpExperimentBcp.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextExptKey, TAB, sourceKey, TAB, name, TAB, description, TAB, releasedate, TAB, lastupdatedate, TAB, TAB, evalStateTermKey, TAB, curStateTermKey, TAB, studyTypeTermKey, TAB, exptTypeKey, TAB, TAB, TAB, TAB, TAB, TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT))
 
 	# Primary Accession 
 	fpAccBcp.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextAccKey, TAB, primaryID, TAB, prefixPartPrimary, TAB, numericPartPrimary, TAB, aeLdbKey, TAB, nextExptKey, TAB, mgiTypeKey, TAB, private, TAB, isPreferred, TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT ))
@@ -505,7 +528,66 @@ def process():
 	fpVariableBcp.write('%s%s%s%s%s%s' % (nextExptVarKey, TAB, nextExptKey, TAB, exptVariableTermKey, CRT))
 	nextExptVarKey += 1
 
+	#
 	# Properties 
+	#
+	
+	# name (0,1, pipe-delim) *
+	# sampleCount (0,1) *
+	# expFactorList (0-n)
+	# providerList (0-n)
+	# experimenttypeList (0-n)
+	# bibiliographyList (0-n)
+	#
+	# expTypePropKey = 20475425
+	# expFactorPropKey = 20475423
+	# sampleCountPropKey = 20475424
+	# contactNamePropKey = 20475426
+	# namePropKey = 20475428
+	# pubmedPropKey = 20475430
+	# propTypeKey = 1002
+
+	# ANCHOR
+	# propName, value and sequenceNum to be filled in later
+	propertyTemplate = "#====#%s%s%s#=#%s%s%s%s%s#==#%s#===#%s%s%s%s%s%s%s%s%s" % (TAB, propTypeKey, TAB, TAB, nextExptKey, TAB, mgiTypeKey, TAB, TAB, TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT )
+	if name != '':
+	    toLoad = propertyTemplate.replace('#=#', str(namePropKey)).replace('#==#', name).replace('#===#', '1').replace('#====#', str(nextPropKey))
+	    print 'propertyTemplate: %s' % propertyTemplate
+	    fpPropertyBcp.write(toLoad)
+	    nextPropKey += 1
+	if sampleCount != '':
+	    toLoad = propertyTemplate.replace('#=#', str(sampleCountPropKey)).replace('#==#', str(sampleCount)).replace('#===#', '1').replace('#====#', str(nextPropKey))
+            fpPropertyBcp.write(toLoad)
+            nextPropKey += 1
+
+	seqNumCt = 1
+	for e in expFactorList:
+	    toLoad = propertyTemplate.replace('#=#', str(expFactorPropKey)).replace('#==#', e).replace('#===#', str(seqNumCt)).replace('#====#', str(nextPropKey))
+            fpPropertyBcp.write(toLoad)
+	    seqNumCt += 1
+            nextPropKey += 1
+
+	seqNumCt = 1
+	for p in providerList:
+	    toLoad = propertyTemplate.replace('#=#', str(contactNamePropKey)).replace('#==#', p).replace('#===#', str(seqNumCt)).replace('#====#', str(nextPropKey))
+            fpPropertyBcp.write(toLoad)
+            seqNumCt += 1
+            nextPropKey += 1
+
+	seqNumCt = 1
+	for e in experimenttypeList:
+	    toLoad = propertyTemplate.replace('#=#', str(expTypePropKey)).replace('#==#', e).replace('#===#', str(seqNumCt)).replace('#====#', str(nextPropKey))
+            fpPropertyBcp.write(toLoad)
+            seqNumCt += 1
+            nextPropKey += 1
+
+	seqNumCt = 1
+	for b in bibliographyList:
+            toLoad = propertyTemplate.replace('#=#', str(pubmedPropKey)).replace('#==#', str(b)).replace('#===#', str(seqNumCt)).replace('#====#', str(nextPropKey))
+            fpPropertyBcp.write(toLoad)
+            seqNumCt += 1
+            nextPropKey += 1
+
 	nextExptKey += 1
 
     print 'Number of experiments in the input: %s' % expCount
