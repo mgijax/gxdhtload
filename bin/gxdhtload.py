@@ -37,7 +37,7 @@ AEGEOPREFIX = 'E-GEOD-'
 # GEO primary ID prefix for experiments
 GEOPREFIX = 'GSE'
 
-SUPERSERIES='This SuperSeries is composed of the SubSeries listed below.'
+SUPERSERIES='This SuperSeries'
 
 # today's date
 loadDate = loadlib.loaddate
@@ -76,8 +76,8 @@ defaultEvalStateTermKey = 20225941
 # 'No' from  'GXD HT Evaluation State' (vocab key = 116)
 altEvalStateTermKey=20225943
 
-# 'Not Curated' from GXD HT Curation State' (vocab key=117)
-curStateTermKey = 20475421
+# 'Not Done' from GXD HT Curation State' (vocab key=117)
+curStateTermKey = 20475422
 
 # 'Not Curated' from 'GXD HT Study Type' (vocab key=124)
 studyTypeTermKey = 20475461 
@@ -362,7 +362,12 @@ def process():
 	    print 'description text: %s' % description
 	    print 'description text type: %s' % type(description)
 	    if type(description) ==  types.ListType:
-		description = description[0]
+		listDescript = ''
+		for d in description:
+		    print 'd: %s' % d
+		    listDescript = listDescript + str(d)
+		description = listDescript
+		print 'listType joined description: %s' % description
 	except:
     	    description = ''
 	if description == None: #  {'text': None, 'id': None}
@@ -404,8 +409,14 @@ def process():
 
         try:
 	    # experimentalfactor.name
+	    # list or dict
+	    expFactor = f['experimentalfactor']
+	    if type(expFactor) == types.DictType:
+		expFactorList = [expFactor]
+	    else:
+		expFactorList = expFactor
 	    expFactorSet = set()
-            for e in f['experimentalfactor']: # property, many stored individ.		
+            for e in expFactorList :  #property, many stored individ. weed out dups
 		expFactorSet.add(e['name'])
 	    expFactorList = list(expFactorSet)
         except:
@@ -438,12 +449,19 @@ def process():
             experimenttypeList = []
 	print 'experimenttypeList: %s' % experimenttypeList
 
-	# pick first experiment type and translate it to populate the exptype key
-	experiment = experimenttypeList[0] 
-	if experiment not in exptTypeTransDict:
-	    exptTypeKey = exptTypeNRKey # Not Resolved
-	else:
-	    exptTypeKey = exptTypeTransDict[experiment]
+	# pick first valid experiment type and translate it to populate the exptype key
+	exptTypeKey = 0
+	for exp in experimenttypeList:
+	    if exp in exptTypeTransDict:
+		exptTypeKey= exptTypeTransDict[exp]
+		break
+	if exptTypeKey == 0:
+	     exptTypeKey = exptTypeNRKey # Not Resolved
+	#experiment = experimenttypeList[0] 
+	#if experiment not in exptTypeTransDict:
+	#    exptTypeKey = exptTypeNRKey # Not Resolved
+	#else:
+	#    exptTypeKey = exptTypeTransDict[experiment]
 
         try:
 	# PubMed IDs - bibliography.accession
