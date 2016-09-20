@@ -439,10 +439,14 @@ def process():
 	print 'lastupdatedate %s' % lastupdatedate
 
         try:
-	    # provider.contact, need to remove exact dups
-	    providerSet = set()
-            for p in  f['provider']:
-		providerSet.add(p['contact']) # property, many stored individually
+	    # provider.contact, dictionary or list of dictionaries; need to remove exact dups
+	    providerList = []
+	    if type(f['provider']) != types.ListType:
+		providerList = [f['provider']['contact']]
+	    else:
+		for p in f['provider']:
+		     providerList.append(p['contact'])
+	    providerSet = set(providerList)
 	    providerList = list(providerSet)
         except:
             providerList = []
