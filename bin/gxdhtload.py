@@ -79,6 +79,10 @@ altEvalStateTermKey=20225943
 # 'Not Done' from GXD HT Curation State' (vocab key=117)
 curStateTermKey = 20475422
 
+# When SUPERSERIES appears in description
+# 'Not Applicable' from 'GXD HT Curation State' (vocab key = 117)
+altCurStateTermKey = 20475420
+
 # 'Not Curated' from 'GXD HT Study Type' (vocab key=124)
 studyTypeTermKey = 20475461 
 
@@ -530,7 +534,10 @@ def process():
 	    # evaluated_date is null
 	    line = line + TAB
 	line = line + str(evalStateToUseKey) + TAB
-	line = line + str(curStateTermKey) + TAB
+	if isSuperSeries:
+	     line = line + str(altCurStateTermKey) + TAB
+	else:
+	    line = line + str(curStateTermKey) + TAB
 	line = line + str(studyTypeTermKey) + TAB
 	line = line + str(exptTypeKey) + TAB
 	# evalByKey  is null unless isSuperSeries is true then it is load user
