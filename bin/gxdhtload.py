@@ -156,6 +156,7 @@ primaryIDList = []
 
 # raw experiment types mapped to controlled vocabulary keys
 exptTypeTransDict = {}
+
 #
 # Purpose:  Open file descriptors, get next primary keys, create lookups
 # Returns: 1 if file does not exist or is not readable, else 0
@@ -349,9 +350,12 @@ def process():
     global propertiesDict, expCount, loadedCount, skippedCount, invalidSampleCountDict
     global invalidReleaseDateDict, invalidUpdateDateDict, noIdList
     global nextExptKey, nextAccKey, nextExptVarKey, nextPropKey
-    
+   
     for f in jFile['experiments']['experiment']:
         expCount += 1
+	# definitions with SUPERSERIES text get different evaluation state than the load default and 
+	# evalution date and evaluated by are set by the load (default null)
+	isSuperSeries = 0
 	evalStateToUseKey = defaultEvalStateTermKey
 	print 'Expt# %s' % expCount
 	try:
@@ -374,7 +378,8 @@ def process():
 	    description = ''
 	description = string.strip(description)
 	if description.find(SUPERSERIES) != -1:
-                    evalStateToUseKey = altEvalStateTermKey
+	    evalStateToUseKey = altEvalStateTermKey
+	    isSuperSeries = 1
 	print 'final description: %s' % description
 	# replace any escapes
 	#description.replace('\\/', '//')
@@ -518,14 +523,23 @@ def process():
 	    line = line + lastupdatedate + TAB
 	else: 
 	    line = line + TAB
-	# evaluated_date is null
-	line = line + TAB
+	# evaluated data is today
+	if isSuperSeries:
+	    line = line + loadDate + TAB
+	else:
+	    # evaluated_date is null
+	    line = line + TAB
 	line = line + str(evalStateToUseKey) + TAB
 	line = line + str(curStateTermKey) + TAB
 	line = line + str(studyTypeTermKey) + TAB
 	line = line + str(exptTypeKey) + TAB
-	# evalByKey, initialCurByKey, lastCurByKey, initialCurDate, lastCurDate all null
-	line = line + TAB + TAB + TAB + TAB + TAB
+	# evalByKey  is null unless isSuperSeries is true then it is load user
+	if isSuperSeries:
+	    line = line + str(userKey) + TAB
+	else:
+	    line = line + TAB
+ 	# initialCurByKey, lastCurByKey, initialCurDate, lastCurDate all null
+	line = line + TAB + TAB + TAB + TAB
 	# created and modified by
 	line = line + str(userKey) + TAB + str(userKey) + TAB
 	# creation and modification date
@@ -557,20 +571,10 @@ def process():
 	# experimenttypeList (0-n)
 	# bibiliographyList (0-n)
 	#
-	# expTypePropKey = 20475425
-	# expFactorPropKey = 20475423
-	# sampleCountPropKey = 20475424
-	# contactNamePropKey = 20475426
-	# namePropKey = 20475428
-	# pubmedPropKey = 20475430
-	# propTypeKey = 1002
-
-	# ANCHOR
 	# propName, value and sequenceNum to be filled in later
 	propertyTemplate = "#====#%s%s%s#=#%s%s%s%s%s#==#%s#===#%s%s%s%s%s%s%s%s%s" % (TAB, propTypeKey, TAB, TAB, nextExptKey, TAB, mgiTypeKey, TAB, TAB, TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT )
 	if name != '':
 	    toLoad = propertyTemplate.replace('#=#', str(namePropKey)).replace('#==#', name).replace('#===#', '1').replace('#====#', str(nextPropKey))
-	    print 'propertyTemplate: %s' % propertyTemplate
 	    fpPropertyBcp.write(toLoad)
 	    nextPropKey += 1
 	if sampleCount != '':

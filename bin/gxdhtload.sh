@@ -136,14 +136,13 @@ checkStatus ${STAT} "${GXDHTLOAD}/bin/gxdhtload.py"
 # Do BCP
 #
 TABLE=GXD_HTExperiment
-echo "BCPing ${OUTPUTDIR}/${TABLE}.bcp" >> ${LOG_DIAG}
 
 if [ -s "${OUTPUTDIR}/${TABLE}.bcp" ]
 then
 
     echo "" >> ${LOG_DIAG}
     date >> ${LOG_DIAG}
-    echo 'BCP data into %s' % ${TABLE}  >> ${LOG_DIAG}
+    echo "BCP data into ${TABLE}"  >> ${LOG_DIAG}
 
     # BCP new data
     ${PG_DBUTILS}/bin/bcpin.csh ${MGD_DBSERVER} ${MGD_DBNAME} ${TABLE} ${OUTPUTDIR} ${TABLE}.bcp ${COLDELIM} ${LINEDELIM} >> ${LOG_DIAG}
@@ -156,7 +155,7 @@ then
 
     echo "" >> ${LOG_DIAG}
     date >> ${LOG_DIAG}
-    echo 'BCP data into %s' % ${TABLE}  >> ${LOG_DIAG}
+    echo "BCP data into ${TABLE}"  >> ${LOG_DIAG}
 
     # BCP new data
     ${PG_DBUTILS}/bin/bcpin.csh ${MGD_DBSERVER} ${MGD_DBNAME} ${TABLE} ${OUTPUTDIR} ${TABLE}.bcp ${COLDELIM} ${LINEDELIM} >> ${LOG_DIAG}
@@ -169,7 +168,7 @@ then
 
     echo "" >> ${LOG_DIAG}
     date >> ${LOG_DIAG}
-    echo 'BCP data into %s' % ${TABLE}  >> ${LOG_DIAG}
+    echo "BCP data into ${TABLE}"  >> ${LOG_DIAG}
 
     # BCP new data
     ${PG_DBUTILS}/bin/bcpin.csh ${MGD_DBSERVER} ${MGD_DBNAME} ${TABLE} ${OUTPUTDIR} ${TABLE}.bcp ${COLDELIM} ${LINEDELIM} >> ${LOG_DIAG}
@@ -182,7 +181,7 @@ then
 
     echo "" >> ${LOG_DIAG}
     date >> ${LOG_DIAG}
-    echo 'BCP data into %s' % ${TABLE}  >> ${LOG_DIAG}
+    echo "BCP data into ${TABLE}"  >> ${LOG_DIAG}
 
     # BCP new data
     ${PG_DBUTILS}/bin/bcpin.csh ${MGD_DBSERVER} ${MGD_DBNAME} ${TABLE} ${OUTPUTDIR} ${TABLE}.bcp ${COLDELIM} ${LINEDELIM} >> ${LOG_DIAG}
