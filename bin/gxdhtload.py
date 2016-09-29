@@ -132,10 +132,15 @@ propTypeKey = 1002
 
 # Number or experiments in AE json file
 expCount = 0
+
 # Number experiments loaded
 loadedCount = 0
+
 #Number of experiments already in the database
-skippedCount = 0
+inDbCount = 0
+
+# Number of experiments in the db whose pubmed IDs were updated
+updateExptCount = 0
 
 # cache of IDs and counts in the input
 # idDict = {primaryID:count, ...}
@@ -156,10 +161,15 @@ invalidUpdateDateDict = {}
 # database lookups
 
 # AE IDs in the database
-primaryIDList = []
+# {primaryID:key, ...}
+primaryIdDict = {}
 
 # raw experiment types mapped to controlled vocabulary keys
 exptTypeTransDict = {}
+
+# pubmed properties by AE ID (primary) in the db
+# {AE ID: [pubmedId1, ..., pubmedIdn], ...}
+pubMedByExptDict = {}
 
 #
 # Purpose:  Open file descriptors, get next primary keys, create lookups
@@ -237,13 +247,13 @@ def initialize():
     print 'nextPropKey: %s' % nextPropKey
 
     # Create experiment ID lookup
-    results = db.sql('''select accid 
+    results = db.sql('''select accid, _Object_key
 	from ACC_Accession
 	where _MGIType_key = 42
 	and _LogicalDB_key = 189
 	and preferred = 1''', 'auto')
     for r in results:
-	primaryIDList.append(r['accid'])
+	primaryIdDict[r['accid']] = r['_Object_key']
 
     # Create experiment type translation lookup
     results = db.sql('''select badname, _Object_key
@@ -251,6 +261,25 @@ def initialize():
 	where _TranslationType_key = 1020''', 'auto')
     for r in results:
 	exptTypeTransDict[r['badname']] = r['_Object_key']
+
+    # create the pubmed ID property lookup by experiment
+    results = db.sql('''select a.accid, p.value
+	from GXD_HTExperiment e, ACC_Accession a, MGI_Property p
+	where e._Experiment_key = a._Object_key
+	and a._MGIType_key = %s
+	and a._LogicalDB_key = %s
+	and a.preferred = 1
+	and e._Experiment_key = p._Object_key
+	and p._PropertyTerm_key = %s
+	and p._PropertyType_key = %s''' % \
+	    (mgiTypeKey, aeLdbKey, pubmedPropKey, propTypeKey), 'auto')
+
+    for r in results:
+	accid = r['accid'] 
+	value = r['value']
+	if accid not in pubMedByExptDict:
+	    pubMedByExptDict[accid] = []
+	pubMedByExptDict[accid].append(value)
 
     db.useOneConnection(0)
     
@@ -351,14 +380,17 @@ def calculateGeoId(primaryID):
 # Throws: Nothing
 #
 def process():
-    global propertiesDict, expCount, loadedCount, skippedCount, invalidSampleCountDict
+    global propertiesDict, expCount, loadedCount, inDbCount, invalidSampleCountDict
     global invalidReleaseDateDict, invalidUpdateDateDict, noIdList
     global nextExptKey, nextAccKey, nextExptVarKey, nextPropKey
+    global updateExptCount
+
    
     for f in jFile['experiments']['experiment']:
         expCount += 1
-	# definitions with SUPERSERIES text get different evaluation state than the load default and 
-	# evalution date and evaluated by are set by the load (default null)
+	# definitions with SUPERSERIES text get different evaluation state 
+	# than the load default and evalution date and evaluated by are set 
+	# by the load (default null)
 	isSuperSeries = 0
 	evalStateToUseKey = defaultEvalStateTermKey
 	print 'Expt# %s' % expCount
@@ -439,7 +471,8 @@ def process():
 	print 'lastupdatedate %s' % lastupdatedate
 
         try:
-	    # provider.contact, dictionary or list of dictionaries; need to remove exact dups
+	    # provider.contact, dictionary or list of dictionaries; need 
+	    # to remove exact dups
 	    providerList = []
 	    if type(f['provider']) != types.ListType:
 		providerList = [f['provider']['contact']]
@@ -479,24 +512,60 @@ def process():
         try:
 	# PubMed IDs - bibliography.accession
 	    bibliographyList = []
-	    #print 'type bibliography: %s bibliography: %s' %  (type(f['bibliography']),  f['bibliography'])
 	    if type(f['bibliography']) == types.DictType: # dictionary
-		 bibliographyList.append(f['bibliography']['accession'])
+		 bibliographyList.append(str(f['bibliography']['accession']))
 	    else: # ListType
 		for b in f['bibliography']: # for each dict in the list
 		    #print 'b: %s' % b
 		    if 'accession' in b:
-		        bibliographyList.append(b['accession'])
+		        bibliographyList.append(str(b['accession']))
 	except:
 	    #print 'exception raised'
             bibliographyList = []
 	print 'bibliographyList: %s' % (  bibliographyList)
 
+	# the template for properties:
+	propertyTemplate = "#====#%s%s%s#=#%s%s%s%s%s#==#%s#===#%s%s%s%s%s%s%s%s%s" % (TAB, propTypeKey, TAB, TAB, nextExptKey, TAB, mgiTypeKey, TAB, TAB, TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT )
+	propertyUpdateTemplate = "#====#%s%s%s#=#%s#=====#%s%s%s#==#%s#===#%s%s%s%s%s%s%s%s%s" % (TAB, propTypeKey, TAB, TAB, TAB, mgiTypeKey, TAB, TAB, TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT )
 	# 
-	# skip if this ID already in the database
+	# update pubmed ID properties, if this ID already in the database
 	#
-	if primaryID in primaryIDList:
-	    skippedCount += 1
+	if primaryID in primaryIdDict:
+	    inDbCount += 1
+
+	    # not all experiments have pubmed IDs
+	    if primaryID in pubMedByExptDict:
+		# get the list of pubmed Ids for this expt in the database
+		dbBibList = pubMedByExptDict[primaryID]
+		print 'bibliographyList: %s' % bibliographyList
+		print 'dbBibList: %s ' % dbBibList
+
+		# get the set of incoming pubmed IDs not in the database
+		newSet = set(bibliographyList).difference(set(dbBibList))
+		print 'newSet: %s' % newSet
+
+		# if we have new pubmed IDs, add them to the database
+		if newSet:
+		    updateExpKey = primaryIdDict[primaryID]
+
+		    # get next sequenceNum for this expt's pubmed ID in the database
+		    results = db.sql('''select max(sequenceNum) + 1 as nextNum
+			from MGI_Property p
+			where p._Object_key =  %s
+			and p._PropertyTerm_key = 20475430
+			and p._PropertyType_key = 1002''' % updateExpKey, 'auto')
+
+		    print 'seqNum results: %s' % results
+		    nextSeqNum = results[0]['nextNum']
+		    print 'nextSeqNum: %s' % nextSeqNum
+		    if newSet:
+			updateExptCount += 1
+		    for b in newSet:
+			toLoad = propertyUpdateTemplate.replace('#=#', str(pubmedPropKey)).replace('#==#', str(b)).replace('#===#', str(nextSeqNum)).replace('#====#', str(nextPropKey)).replace('#=====#', str(updateExpKey))
+			print 'toLoad: %s' % toLoad
+			fpPropertyBcp.write(toLoad)
+			nextPropKey += 1
+
 	    continue
 
 	prefixPartPrimary, numericPartPrimary = accessionlib.split_accnum(primaryID)
@@ -583,7 +652,6 @@ def process():
 	# bibiliographyList (0-n)
 	#
 	# propName, value and sequenceNum to be filled in later
-	propertyTemplate = "#====#%s%s%s#=#%s%s%s%s%s#==#%s#===#%s%s%s%s%s%s%s%s%s" % (TAB, propTypeKey, TAB, TAB, nextExptKey, TAB, mgiTypeKey, TAB, TAB, TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT )
 	if name != '':
 	    toLoad = propertyTemplate.replace('#=#', str(namePropKey)).replace('#==#', name).replace('#===#', '1').replace('#====#', str(nextPropKey))
 	    fpPropertyBcp.write(toLoad)
@@ -623,14 +691,15 @@ def process():
 
 	nextExptKey += 1
 
-    print 'Number of experiments in the input: %s' % expCount
-    print 'Number of experiments already in the database: %s' % skippedCount
-    print 'Number of experiments loaded: %s' % loadedCount
-
     return
 
 def writeQC():
     fpQcFile.write('GXD HT Raw Data Load QC%s%s%s' % (CRT, CRT, CRT))
+
+    fpQcFile.write('Number of experiments in the input: %s%s' % (expCount, CRT))
+    fpQcFile.write('Number of experiments already in the database: %s%s' % (inDbCount, CRT))
+    fpQcFile.write('Number of experiments loaded: %s%s' % (loadedCount, CRT))
+    fpQcFile.write('Number of experiments with updated PubMed IDs: %s%s%s' % (updateExptCount, CRT, CRT))
 
 
     fpQcFile.write('Experiments with no Primary ID%s' % CRT)
@@ -660,10 +729,6 @@ def writeQC():
 	fpQcFile.write('%s%s%s%s' %  (id, TAB, invalidSampleCountDict[id], CRT))
     fpQcFile.write('\nTotal: %s%s%s' % (ct, CRT, CRT))
 
-    #print 'invalid release date dict'
-    #print invalidReleaseDateDict
-    #print 'invalid update date dict'
-    #print invalidUpdateDateDict
     fpQcFile.write('Experiments with Invalid Release Date%s' % CRT)
     fpQcFile.write('ID%sRelease Date%s' % (TAB, CRT))
     fpQcFile.write('--------------------------------------------------%s' % CRT)
