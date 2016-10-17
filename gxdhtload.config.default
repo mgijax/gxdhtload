@@ -24,6 +24,10 @@ fi
 
 . ${MGICONFIG}/master.config.sh
 
+#PYTHON=/usr/bin/python
+
+#export PYTHON
+
 ###########################################################################
 #
 #  LOAD SPECIFIC SETTINGS
@@ -54,15 +58,18 @@ EXPERIMENT_FILENAME=GXD_HTExperiment.bcp
 ACC_FILENAME=ACC_Accession.bcp
 VARIABLE_FILENAME=GXD_HTExperimentVariable.bcp
 PROPERTY_FILENAME=MGI_Property.bcp
-export EXPERIMENT_FILENAME VARIABLE_FILENAME PROPERTY_FILENAME
+GEO_PROPERTY_FILENAME=MGI_Property-GEO.bcp
+
+export EXPERIMENT_FILENAME VARIABLE_FILENAME PROPERTY_FILENAME GEO_PROPERTY_FILENAME
 
 # Full paths to bcp files
 EXPERIMENT_BCP=${OUTPUTDIR}/${EXPERIMENT_FILENAME}
 ACC_BCP=${OUTPUTDIR}/${ACC_FILENAME}
 VARIABLE_BCP=${OUTPUTDIR}/${VARIABLE_FILENAME}
 PROPERTY_BCP=${OUTPUTDIR}/${PROPERTY_FILENAME}
+GEO_PROPERTY_BCP=${OUTPUTDIR}/${GEO_PROPERTY_FILENAME}
 
-export EXPERIMENT_BCP ACC_BCP VARIABLE_BCP PROPERTY_BCP
+export EXPERIMENT_BCP ACC_BCP VARIABLE_BCP PROPERTY_BCP GEO_PROPERTY_BCP
 
 #  Complete path name of the log files
 LOG_FILE=${LOGDIR}/gxdhtload.log
@@ -72,6 +79,20 @@ LOG_CUR=${LOGDIR}/gxdhtload.cur.log
 LOG_VAL=${LOGDIR}/gxdhtload.val.log
 
 export LOG_FILE LOG_PROC LOG_DIAG LOG_CUR LOG_VAL
+
+#
+# GEO PubMed ID postprocessing
+#
+# GEO UID file; we parse this for values to get GEO_XML_FILE
+GEO_UID_FILE=${INPUTDIR}/geo.uid.xml
+
+# GEO XML file
+GEO_XML_FILE=${INPUTDIR}/geo.xml
+
+# GEO Report file
+GEO_RPT_FILE=${RPTDIR}/geoUpdate.rpt
+
+export GEO_UID_FILE GEO_XML_FILE GEO_RPT_FILE
 
 #  Send debug messages to the diagnostic log (true or false)
 LOG_DEBUG=false
@@ -98,4 +119,5 @@ MAIL_LOG_PROC="mgiadmin"
 export MAIL_LOADNAME MAIL_LOG_PROC
 
 INSTALLDIR=${GXDHTLOAD}
+
 export INSTALLDIR
