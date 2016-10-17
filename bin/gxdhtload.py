@@ -92,13 +92,6 @@ exptTypeNRKey = 20475438
 # 'ArrayExpress' from 'GXD HT Source' (vocab key = 119)
 sourceKey = 20475431  
 
-# Property keys
-#namePropKey = 
-
-# value for evaluation date, initial curated date and last curated date
-# evaluated by, initial curated by, last curated by
-nullValue = '|'
-
 #
 # File Descriptors:
 #
@@ -229,14 +222,10 @@ def initialize():
 
     # get next primary key for the ExperimentVariable table
     results = db.sql('select max(_ExperimentVariable_key) + 1 as maxKey from GXD_HTExperimentVariable', 'auto')
-    #print 'results: %s' % results[0]['maxKey']
     if results[0]['maxKey'] == None:
         nextExptVarKey = 1000
     else:
 	nextExptVarKey  = results[0]['maxKey']
-    #print 'nextExptKey: %s' % nextExptKey
-    #print 'nextAccKey: %s ' % nextAccKey
-    #print 'nextExptVarKey: %s' % nextExptVarKey
 
     # get next primary key for the Property table
     results = db.sql('select max(_Property_key) + 1 as maxKey from MGI_Property', 'auto')
@@ -244,7 +233,6 @@ def initialize():
         nextPropKey = 1000
     else:
         nextPropKey  = results[0]['maxKey']
-    print 'nextPropKey: %s' % nextPropKey
 
     # Create experiment ID lookup
     results = db.sql('''select accid, _Object_key
@@ -309,16 +297,14 @@ def checkDate(rawText):
     # yyyy-mm-dd format
     ymd = re.compile('([0-9]{4})-([0-9]{2})-([0-9]{2})')
     ymdMatch = ymd.match(rawText)
-    #print 'checkdate: %s' % rawText
+    
     if ymdMatch:
         (year, month, day) = ymdMatch.groups()
-        #print 'year: %s month: %s day %s' % (year, month, day)
         if (1950 <= int(year) <= 2050):
             if (1 <= int(month) <= 12):
                 if (1 <= int(day) <= 31):
                     #print 'return 1'
                     return 1
-    #print 'return 0'
     return 0
 
 #
@@ -339,21 +325,15 @@ def doQcChecks(primaryID, name, sampleCount, releasedate, lastupdatedate):
 	checkPrimaryId(primaryID)
 
     # check that sample is integer
-    #print 'primaryID: %s sampleCount: %s isInt: %s' % (primaryID, sampleCount, checkInteger(sampleCount))
     if sampleCount and checkInteger(sampleCount)== 0:
 	invalidSampleCountDict[primaryID] = sampleCount
 	hasError = 1
     # check dates
-    #print 'check releasedate'
-    #print 'primaryID: %s' % primaryID
     if releasedate != '' and checkDate(releasedate) == 0:
-	#print 'adding %s to invalidReleaseDateDict' % releasedate
 	invalidReleaseDateDict[primaryID] = releasedate
 	hasError = 1
 
-    #print 'check lastupdatedate'
     if lastupdatedate != '' and checkDate(lastupdatedate) == 0:
-	#print 'adding %s to invalidUpdateDateDict' % lastupdatedate
 	invalidUpdateDateDict[primaryID]= lastupdatedate
 	hasError = 1
 
@@ -397,17 +377,13 @@ def process():
 	try:
 	    allDescription =  f['description']
 	    print 'allDescription: %s' % allDescription
-	    print 'allDescription type: %s' % type(allDescription)
             description = allDescription['text'] # experiment, onea
 	    print 'description text: %s' % description
-	    print 'description text type: %s' % type(description)
 	    if type(description) ==  types.ListType:
 		listDescript = ''
 		for d in description:
-		    print 'd: %s' % d
 		    listDescript = listDescript + str(d)
 		description = listDescript
-		print 'listType joined description: %s' % description
 	except:
     	    description = ''
 	if description == None: #  {'text': None, 'id': None}
@@ -417,9 +393,6 @@ def process():
 	    evalStateToUseKey = altEvalStateTermKey
 	    isSuperSeries = 1
 	print 'final description: %s' % description
-	# replace any escapes
-	#description.replace('\\/', '//')
-	print 'final description type: %s' % type(description)
 
 	try:
 	    name = f['name'] # experiment and property, many; |-delim in both
@@ -495,7 +468,8 @@ def process():
             experimenttypeList = []
 	print 'experimenttypeList: %s' % experimenttypeList
 
-	# pick first valid experiment type and translate it to populate the exptype key
+	# pick first valid experiment type and translate it to populate the 
+	# exptype key
 	exptTypeKey = 0
 	for exp in experimenttypeList:
 	    if exp in exptTypeTransDict:
@@ -503,11 +477,6 @@ def process():
 		break
 	if exptTypeKey == 0:
 	     exptTypeKey = exptTypeNRKey # Not Resolved
-	#experiment = experimenttypeList[0] 
-	#if experiment not in exptTypeTransDict:
-	#    exptTypeKey = exptTypeNRKey # Not Resolved
-	#else:
-	#    exptTypeKey = exptTypeTransDict[experiment]
 
         try:
 	# PubMed IDs - bibliography.accession
@@ -520,7 +489,6 @@ def process():
 		    if 'accession' in b:
 		        bibliographyList.append(str(b['accession']))
 	except:
-	    #print 'exception raised'
             bibliographyList = []
 	print 'bibliographyList: %s' % (  bibliographyList)
 
