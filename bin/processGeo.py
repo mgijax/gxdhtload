@@ -240,6 +240,7 @@ def process():
 	    # get the list of pubmed Ids for this expt in the database
 	    dbBibList = pubMedByExptDict[geoId]
 	    geoBibList = geoPubMedDict[geoId]
+	    print 'geoId: %s' % geoId
 	    print 'dbBibList: %s ' % dbBibList
 	    print 'geoBibList: %s' % geoBibList
 
