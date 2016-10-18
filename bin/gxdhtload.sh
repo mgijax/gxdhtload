@@ -281,6 +281,20 @@ ${GXDHTLOAD}/bin/processGeo.py #>> ${LOG_DIAG}
 STAT=$?
 checkStatus ${STAT} "${GXDHTLOAD}/bin/processGeo.py"
 
+# BCP PubMed properties from GEO
+TABLE=MGI_Property
+
+if [ -s "${OUTPUTDIR}/${GEO_PROPERTY_FILENAME}" ]
+then
+
+    echo "" >> ${LOG_DIAG}
+    date >> ${LOG_DIAG}
+    echo "BCP data into ${TABLE}"  >> ${LOG_DIAG}
+
+    # BCP new data
+    ${PG_DBUTILS}/bin/bcpin.csh ${MGD_DBSERVER} ${MGD_DBNAME} ${TABLE} ${OUTPUTDIR} ${GEO_PROPERTY_FILENAME} ${COLDELIM} ${LINEDELIM} >> ${LOG_DIAG}
+fi
+
 #
 # run postload cleanup and email logs
 #
