@@ -191,6 +191,8 @@ def parseFile(fpInFile):
 		    if line != '\n':
 			line = string.strip(line)
 	else:
+	    if gseId != '':
+		print 'geoExpt:%s%s%s' % (gseId, TAB, ';'.join(pubMedIds))
 	    if gseId != '' and pubMedIds != []:
 		print 'adding pubMed ID: %s to GEO id: %s' % (pubMedIds, gseId)
 		geoPubMedDict[gseId] = pubMedIds
@@ -268,9 +270,6 @@ def process():
 		    nextSeqNum += 1
 		    nextPropKey += 1
     # determine GEO experiments in MGD, but not in GEO
-    print 'determine GEO experiments in MGD, but not in GEO'
-    print 'NumberInDB: %s' % len(pubMedByExptDict)
-    print 'NumberInGEO: %s' % len(geoPubMedDict)
     dbIds = pubMedByExptDict.keys()
     geoIds = geoPubMedDict.keys()
     for g in dbIds:
@@ -284,7 +283,8 @@ def reportStats():
     fpQcFile.write('%sGEO Update Report%s' % (CRT, CRT))
     fpQcFile.write('--------------------------------------------------%s' % CRT)
     fpQcFile.write('Number of GEO experiments in DB: %s%s' % (len(pubMedByExptDict), CRT))
-    fpQcFile.write('Number of GEO experiments in the input: %s%s' % (len(geoPubMedDict), CRT))
+    fpQcFile.write('Number of GEO experiments in the input: %s%s' % (expCount, CRT))
+    fpQcFile.write('Number of GEO experiments with PubMed ID(s)in the input: %s%s' % (len(geoPubMedDict), CRT))
     fpQcFile.write('Number of GEO experiments updated: %s%s' % (updateExpCount, CRT))
     fpQcFile.write('Number of GEO experiments not in DB: %s%s' % (len(notInDbList), CRT))
     fpQcFile.write('GEO experiments not in DB: %s' % CRT)
