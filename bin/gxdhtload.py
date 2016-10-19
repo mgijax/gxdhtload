@@ -374,15 +374,28 @@ def process():
 	isSuperSeries = 0
 	evalStateToUseKey = defaultEvalStateTermKey
 	print 'Expt# %s' % expCount
+
 	try:
+	    # description is string or list
 	    allDescription =  f['description']
-	    print 'allDescription: %s' % allDescription
+	    #print 'allDescription: %s' % allDescription
             description = allDescription['text'] # experiment, onea
-	    print 'description text: %s' % description
+	    #print 'description text: %s' % description
+	    # US108 'clean up URLs that appear in description field'
+	    # All URLs that need to be cleaned up are the listType description
 	    if type(description) ==  types.ListType:
 		listDescript = ''
 		for d in description:
-		    listDescript = listDescript + str(d)
+		    #print 'd: %s' % d
+		    if type(d) == types.DictType: 
+			if 'a' in d:
+			    url = d['a']['$']
+			    #print 'url: %s' % url
+			    listDescript = listDescript + url
+			elif 'br' in d:
+			    continue
+		    else:
+			listDescript = listDescript + str(d)
 		description = listDescript
 	except:
     	    description = ''
