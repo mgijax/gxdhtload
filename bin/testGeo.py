@@ -49,10 +49,10 @@ expCount = 0
 # GEO experiments NOT in the database
 notInDbList = []
 
-# GEO experiments in MGD not in GEO
+# GEO experiments in GXD not in GEO
 notInGeoList = []
 
-# PubMed IDs in GEO not in MGD
+# PubMed IDs in GEO not in GXD
 # {geoID:[pubMed1, ...], ...}
 pubMedNotInDbDict = {}
 
@@ -159,7 +159,7 @@ def process():
 	    mgdPubMed = set(pubMedByExptDict[geoId])
 	    if mgdPubMed == None:
 		mgdPubMed = set([])
-	    # find pubmed IDs in GEO not in MGD
+	    # find pubmed IDs in GEO not in GXD
 	    difference = geoPubMed.difference(mgdPubMed)
 	    print 'geoId: %s' % geoId
 	    print 'geoPubMed: %s' % geoPubMed
@@ -171,7 +171,7 @@ def process():
     for g in pubMedNotInDbDict:
 	print 'geoId: %s difference: %s' % (g, pubMedNotInDbDict[g])
 def reportStats():
-    fpQcFile.write("%sPubMed IDs in GEO (Connie's File) that are not in MGD%s" % (CRT, CRT))
+    fpQcFile.write("%sPubMed IDs in GEO (Connie's File) that are not in GXD%s" % (CRT, CRT))
     fpQcFile.write('--------------------------------------------------%s' % CRT)
     for g in pubMedNotInDbDict:
 	 fpQcFile.write('%s%s%s%s' % (g, TAB, pubMedNotInDbDict[g], CRT))
