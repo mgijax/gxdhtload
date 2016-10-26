@@ -116,7 +116,6 @@ def initialize():
         nextPropKey = 1000
     else:
         nextPropKey  = results[0]['maxKey']
-    print 'nextPropKey: %s' % nextPropKey
 
     # create the pubmed ID property lookup by GEO experiment
     # get all experiments with 2ndary GEO IDs, and their pubMed IDs if they have them
@@ -151,9 +150,15 @@ def initialize():
     db.useOneConnection(0)
     
     parseAll()
-    #for key in geoPubMedDict:
-#	print 'geoID: %s pubMedIDs: %s' % (key, geoPubMedDict[key])
     return
+
+#
+# Purpose: parse a geo file
+# Returns: 
+# Assumes: Nothing
+# Effects: 
+# Throws: Nothing
+#
 
 def parseFile(fpInFile):
     global geoPubMedDict, expCount
@@ -164,7 +169,6 @@ def parseFile(fpInFile):
     # don't strip if just newline so blank lines won't stop the loop
     if line != '\n':
 	 line = string.strip(line)
-    print 'line: "%s"' % line
 
     while line:
 	if line.find('<DocumentSummary ') == 0:
@@ -172,29 +176,27 @@ def parseFile(fpInFile):
 	    expCount += 1
 	elif line.find('</DocumentSummary>') == 0:
 	    expFound = 0
-	print 'expFound: %s' % expFound
+	#print 'expFound: %s' % expFound
 	if expFound:
 	    if line.find('<Accession') == 0:
 		id =  line.split('>')[1].split('<')[0]
 		if id.find('GSE') == 0:
 		    gseId = id
-		    print 'found gseId: %s' % gseId
+		    #print 'found gseId: %s' % gseId
 	    elif line.find('<PubMedIds>') == 0:
-		print 'found open PubMedIds tag'
+		#print 'found open PubMedIds tag'
 		line = fpInFile.readline()
 		if line != '\n':
 		    line = string.strip(line)
 		while line.find('</PubMedIds>') == -1:
-		    print 'line in while: %s' % line
+		    #print 'line in while: %s' % line
 		    pubMedIds.append(line.split('>')[1].split('<')[0])
 		    line = fpInFile.readline()
 		    if line != '\n':
 			line = string.strip(line)
 	else:
-	    if gseId != '':
-		print 'geoExpt:%s%s%s' % (gseId, TAB, ';'.join(pubMedIds))
 	    if gseId != '' and pubMedIds != []:
-		print 'adding pubMed ID: %s to GEO id: %s' % (pubMedIds, gseId)
+		#print 'adding pubMed ID: %s to GEO id: %s' % (pubMedIds, gseId)
 		geoPubMedDict[gseId] = pubMedIds
 		gseId = ''
 		pubMedIds = []
@@ -202,19 +204,25 @@ def parseFile(fpInFile):
 	# don't strip if just newline so blank lines won't stop the loop
 	if line != '\n':
 	     line = string.strip(line)
-	print 'line: "%s"' % line
+    return
 
+#
+# Purpose: Loops through all input files sending them to parser
+# Returns: 
+# Assumes: Nothing
+# Effects: 
+# Throws: Nothing
+#
 def parseAll():
     fpInFile = None
     for file in string.split(os.environ['ALL_FILES']):
-  	print 'file: %s' % file
 	try:
 	    fpInFile = open(file, 'r')
 	except:
 	    print '%s does not exist' % inFileName
 	parseFile(fpInFile)
 	fpInFile.close()
-
+    return
 #
 # Purpose: parse input file, QC, create bcp files
 # Returns: 1 if file can be read/processed correctly, else 0
@@ -240,18 +248,14 @@ def process():
 	    # get the list of pubmed Ids for this expt in the database
 	    dbBibList = pubMedByExptDict[geoId]
 	    geoBibList = geoPubMedDict[geoId]
-	    print 'geoId: %s' % geoId
-	    print 'dbBibList: %s ' % dbBibList
-	    print 'geoBibList: %s' % geoBibList
 
 	    # get the set of incoming pubmed IDs not in the database
 	    newSet = set(geoBibList).difference(set(dbBibList))
-	    print 'newSet: %s' % newSet
 
 	    # if we have new pubmed IDs, add them to the database
 	    if newSet:
 		updateExpKey = geoIdToKeyDict[geoId]
-		print 'geoIdToUpdate: %s exptKey: %s' % (geoId, updateExpKey)
+
 		# get next sequenceNum for this expt's pubmed ID in the database
 		results = db.sql('''select max(sequenceNum) + 1 as nextNum
 		    from MGI_Property p
@@ -262,11 +266,10 @@ def process():
 		nextSeqNum = results[0]['nextNum']
 		if nextSeqNum == None:
 		    nextSeqNum = 1
-		print 'nextSeqNum: %s' % nextSeqNum
 		updateExpCount += 1
 		for b in newSet:
 		    toLoad = propertyUpdateTemplate.replace('#=#', str(pubmedPropKey)).replace('#==#', str(b)).replace('#===#', str(nextSeqNum)).replace('#====#', str(nextPropKey)).replace('#=====#', str(updateExpKey))
-		    print 'toLoad: %s' % toLoad
+		    
 		    fpPropertyBcp.write(toLoad)
 		    nextSeqNum += 1
 		    nextPropKey += 1
@@ -274,12 +277,19 @@ def process():
     dbIds = pubMedByExptDict.keys()
     geoIds = geoPubMedDict.keys()
     for g in dbIds:
-	print 'geo in DB: %s' % g
+	
 	if g not in geoIds:
-	    print 'Not in GEO'
 	    notInGeoList.append(g)
-	else:
-	    print 'In GEO'
+    return
+	    
+#
+# Purpose: Writes statistics to the QC file
+# Returns: 1 if file does not exist or is not readable, else 0
+# Assumes: Nothing
+# Effects: Closes files
+# Throws: Nothing
+#
+
 def reportStats():
     fpQcFile.write('%sGEO Update Report%s' % (CRT, CRT))
     fpQcFile.write('--------------------------------------------------%s' % CRT)
