@@ -24,10 +24,6 @@ fi
 
 . ${MGICONFIG}/master.config.sh
 
-#PYTHON=/usr/bin/python
-
-#export PYTHON
-
 ###########################################################################
 #
 #  LOAD SPECIFIC SETTINGS
@@ -43,10 +39,8 @@ OUTPUTDIR=${FILEDIR}/output
 INPUTDIR=${FILEDIR}/input
 
 # input/output
-INFILE_NAME=${DATADOWNLOADS}/www.ebi.ac.uk/arrayexpress.json
-#INFILE_NAME=/mgi/all/wts_projects/12300/12370/ArrayExpressData/all.experiments.v2.json # all.restrictExptType.mus.json
-#INFILE_NAME=/mgi/all/wts_projects/12300/12370/testing/US23_testing/US23_mockJSON.json
-#INFILE_NAME=/mgi/all/wts_projects/12300/12370/testing/US23_testing/US23_mock_json2.json
+#INFILE_NAME=${DATADOWNLOADS}/www.ebi.ac.uk/arrayexpress.json
+INFILE_NAME=/mgi/all/wts_projects/12300/12370/ArrayExpressData/all.experiments.v2.json 
 
 QCFILE_NAME=${RPTDIR}/gxdhtload_qc.rpt
 
