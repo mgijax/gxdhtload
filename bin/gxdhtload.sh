@@ -128,7 +128,7 @@ preload ${OUTPUTDIR}
 #  run the load
 #
 echo 'Running gxdhtload.py'  | tee -a ${LOG_DIAG}
-${GXDHTLOAD}/bin/gxdhtload.py #>> ${LOG_DIAG}
+${GXDHTLOAD}/bin/gxdhtload.py >> ${LOG_DIAG}
 STAT=$?
 checkStatus ${STAT} "${GXDHTLOAD}/bin/gxdhtload.py"
 
@@ -277,7 +277,7 @@ echo "ALL_FILES: ${ALL_FILES}"
 
 # step three, parse experiments/load new PubMedIds
 echo 'Running processGeo.py'  | tee -a ${LOG_DIAG}
-${GXDHTLOAD}/bin/processGeo.py #>> ${LOG_DIAG}
+${GXDHTLOAD}/bin/processGeo.py >> ${LOG_DIAG} 
 STAT=$?
 checkStatus ${STAT} "${GXDHTLOAD}/bin/processGeo.py"
 
