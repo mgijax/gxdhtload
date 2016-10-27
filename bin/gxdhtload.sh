@@ -240,9 +240,9 @@ wget  -O $GEO_UID_FILE "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fc
 QUERY_KEY=`cat ${GEO_UID_FILE} | grep '<QueryKey>' | cut -d'>' -f8 | cut -d'<' -f1`
 WEB_ENV=`cat ${GEO_UID_FILE} | grep '<WebEnv>' | cut -d'>' -f10 | cut -d'<' -f1`
 GEO_COUNT=`cat ${GEO_UID_FILE} | grep '<Count>' | cut -d'>' -f2 | cut -d'<' -f1`
-echo "QUERY_KEY: $QUERY_KEY"
-echo "WEB_ENV: $WEB_ENV"
-echo "GEO_COUNT: $GEO_COUNT"
+#echo "QUERY_KEY: $QUERY_KEY"
+#echo "WEB_ENV: $WEB_ENV"
+#echo "GEO_COUNT: $GEO_COUNT"
 
 # number of experiments to retrieve from the HISTORY server in one batch
 retrieve_max=5000
@@ -271,9 +271,9 @@ do
     retrieve_start=`expr $retrieve_start + $retrieve_max`
 done
 
-ALL_FILES=`ls /data/loads/sc/mgi/gxdhtload/input/geo.xml.*`
+ALL_FILES=`ls ${INPUTDIR}/geo.xml.*`
 export ALL_FILES
-echo "ALL_FILES: ${ALL_FILES}"
+#echo "ALL_FILES: ${ALL_FILES}" 
 
 # step three, parse experiments/load new PubMedIds
 echo 'Running processGeo.py'  | tee -a ${LOG_DIAG}
