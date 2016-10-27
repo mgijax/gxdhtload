@@ -555,7 +555,8 @@ def process():
 			#print 'toLoad: %s' % toLoad
 			fpPropertyBcp.write(toLoad)
 			nextPropKey += 1
-
+	    # continue so we don't dup what is in the db
+	    continue
 	prefixPartPrimary, numericPartPrimary = accessionlib.split_accnum(primaryID)
 	#
 	# Do QC checks
