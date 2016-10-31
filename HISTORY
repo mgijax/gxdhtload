@@ -1,3 +1,11 @@
+TAG: gxdhtload-6-0-6-14
+DATE: 10/31/2016
+STAFF: sc
+CHANGES: TR12370 Project GXD HT
+1) added flagExperiments.py and flagExperiments.sh to set evaluation state to
+   maybe, and update evalDate, evalBy, modDate and modBy for experiments
+   associated with pubmed IDs that have JNums selected for expression
+
 TAG: gxdhtload-6-0-6-13
 DATE: 10/28/2016
 STAFF: sc
