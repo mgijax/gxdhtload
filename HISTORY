@@ -1,3 +1,14 @@
+TAG: gxdhtload-6-0-6-15
+DATE: 10/31/2016
+STAFF: sc
+CHANGES: post production release
+1. updated flagExperiments.py from adhoc script to load script, adding
+      logging.
+2. flagExperiments.sh add load config sourcing so it can adhoc run *.py
+      which now has logging
+3. gxdhtload.sh added call to flagExperiments.py 
+4. processGeo.py - reordered qc reporting 
+
 TAG: gxdhtload-6-0-6-14
 DATE: 10/31/2016
 STAFF: sc

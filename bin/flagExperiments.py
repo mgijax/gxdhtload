@@ -39,7 +39,17 @@ userKey = 1561
 # state to update to
 maybe = 20225944
 
+# set of experiments in MGI with pubmed IDs selected for expression organized by
+# experiment
+# {exptKey:[list of pubMedIds], ...}
 updateDict = {}
+
+# updated experiments
+updateList = []
+
+# QC file and descriptor
+qcFileName = os.environ['QCFILE_NAME']
+fpQcFile = None
 
 #
 # Purpose:  Open file descriptors, get next primary keys, create lookups
@@ -49,7 +59,13 @@ updateDict = {}
 # Throws: Nothing
 #
 def initialize():
-    global updateDict
+    global updateDict, fpQcFile
+
+    # create file qc descriptor in append mode
+    try:
+        fpQcFile = open(qcFileName, 'a')
+    except:
+         print 'Cannot create %s' % qcFileName
 
     db.useOneConnection(1)
 
@@ -103,25 +119,42 @@ def initialize():
 #
 
 def process():
+    global updateList
+    print 'in process'
     for key in updateDict:
         pubMedList = updateDict[key]
         exptKey, exptId = string.split(key, '|')
+	updateList.append('%s%s%s%s' % (exptId, TAB, string.join(pubMedList, ', '), CRT))
         print 'Updating %s %s with PubMed IDs %s' %  (exptKey, exptId, pubMedList)
-	db.sql('''Update GXD_HTExperiment
-		set _EvaluationState_key = %s,
-		evaluated_date = '%s',
-		_EvaluatedBy_key = %s,
-		modification_date = '%s',
-		_ModifiedBy_key = %s
-		where _Experiment_key = %s''' % (maybe, loadDate, userKey, loadDate, userKey, exptKey), None)
-    db.commit()
+	#db.sql('''Update GXD_HTExperiment
+	#	set _EvaluationState_key = %s,
+	#	evaluated_date = '%s',
+	#	_EvaluatedBy_key = %s,
+	#	modification_date = '%s',
+	#	_ModifiedBy_key = %s
+	#	where _Experiment_key = %s''' % (maybe, loadDate, userKey, loadDate, userKey, exptKey), None)
+    #db.commit()
     return
 
+
+#
+# Purpose: Writes statistics to the QC file
+#
+def reportStats():
+    if len(updateList):
+	fpQcFile.write("%sExperiments Flagged as 'maybe'%s" % (CRT, CRT))
+	fpQcFile.write('--------------------------------------------------%s' % CRT)
+	for line in updateList: 
+	     fpQcFile.write(line)
+	fpQcFile.write('%sTotal: %s%s%s' % (CRT, len(updateList), CRT, CRT))
 #
 # main
 #
 
+print 'init'
 initialize()
+print 'process'
 process()
-db.useOneConnection(0)
+reportStats()
 
+db.useOneConnection(0)
