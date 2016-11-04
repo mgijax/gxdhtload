@@ -126,14 +126,14 @@ def process():
         exptKey, exptId = string.split(key, '|')
 	updateList.append('%s%s%s%s' % (exptId, TAB, string.join(pubMedList, ', '), CRT))
         print 'Updating %s %s with PubMed IDs %s' %  (exptKey, exptId, pubMedList)
-	#db.sql('''Update GXD_HTExperiment
-	#	set _EvaluationState_key = %s,
-	#	evaluated_date = '%s',
-	#	_EvaluatedBy_key = %s,
-	#	modification_date = '%s',
-	#	_ModifiedBy_key = %s
-	#	where _Experiment_key = %s''' % (maybe, loadDate, userKey, loadDate, userKey, exptKey), None)
-    #db.commit()
+	db.sql('''Update GXD_HTExperiment
+		set _EvaluationState_key = %s,
+		evaluated_date = '%s',
+		_EvaluatedBy_key = %s,
+		modification_date = '%s',
+		_ModifiedBy_key = %s
+		where _Experiment_key = %s''' % (maybe, loadDate, userKey, loadDate, userKey, exptKey), None)
+    db.commit()
     return
 
 
