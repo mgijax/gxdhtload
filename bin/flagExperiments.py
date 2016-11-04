@@ -141,19 +141,16 @@ def process():
 # Purpose: Writes statistics to the QC file
 #
 def reportStats():
-    if len(updateList):
-	fpQcFile.write("%sExperiments Flagged as 'maybe'%s" % (CRT, CRT))
-	fpQcFile.write('--------------------------------------------------%s' % CRT)
-	for line in updateList: 
-	     fpQcFile.write(line)
-	fpQcFile.write('%sTotal: %s%s%s' % (CRT, len(updateList), CRT, CRT))
+    fpQcFile.write("%sExperiments Flagged as 'maybe'%s" % (CRT, CRT))
+    fpQcFile.write('--------------------------------------------------%s' % CRT)
+    for line in updateList: 
+	 fpQcFile.write(line)
+    fpQcFile.write('%sTotal: %s%s%s' % (CRT, len(updateList), CRT, CRT))
 #
 # main
 #
 
-print 'init'
 initialize()
-print 'process'
 process()
 reportStats()
 
