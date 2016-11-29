@@ -120,12 +120,12 @@ def initialize():
 
 def process():
     global updateList
-    print 'in process'
+    #print 'in process'
     for key in updateDict:
         pubMedList = updateDict[key]
         exptKey, exptId = string.split(key, '|')
 	updateList.append('%s%s%s%s' % (exptId, TAB, string.join(pubMedList, ', '), CRT))
-        print 'Updating %s %s with PubMed IDs %s' %  (exptKey, exptId, pubMedList)
+        #print 'Updating %s %s with PubMed IDs %s' %  (exptKey, exptId, pubMedList)
 	db.sql('''Update GXD_HTExperiment
 		set _EvaluationState_key = %s,
 		evaluated_date = '%s',

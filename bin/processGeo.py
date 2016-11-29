@@ -60,9 +60,6 @@ updateExpCount = 0
 # GEO experiments NOT in the database
 notInDbList = []
 
-# GEO experiments in MGD not in GEO
-notInGeoList = []
-
 # PubMed property values
 pubmedPropKey = 20475430
 propTypeKey = 1002
@@ -146,7 +143,9 @@ def initialize():
 	    pubMedByExptDict[accid] = []
 	if value != None:
 	    pubMedByExptDict[accid].append(value)
-    
+    print 'in database'
+    for x in pubMedByExptDict:
+	print '%s %s%s' % (x, pubMedByExptDict[x], CRT)
     db.useOneConnection(0)
     
     parseAll()
@@ -233,7 +232,7 @@ def parseAll():
 
 def process():
     global nextPropKey
-    global updateExpCount, notInDbList, notInGeoList
+    global updateExpCount, notInDbList
 
     propertyUpdateTemplate = "#====#%s%s%s#=#%s#=====#%s%s%s#==#%s#===#%s%s%s%s%s%s%s%s%s" % (TAB, propTypeKey, TAB, TAB, TAB, mgiTypeKey, TAB, TAB, TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT )
     for geoId in geoPubMedDict:
@@ -273,13 +272,6 @@ def process():
 		    fpPropertyBcp.write(toLoad)
 		    nextSeqNum += 1
 		    nextPropKey += 1
-    # determine GEO experiments in MGD, but not in GEO
-    dbIds = pubMedByExptDict.keys()
-    geoIds = geoPubMedDict.keys()
-    for g in dbIds:
-	
-	if g not in geoIds:
-	    notInGeoList.append(g)
     return
 	    
 #
@@ -299,12 +291,9 @@ def reportStats():
     fpQcFile.write('Number of GEO experiments updated in DB: %s%s' % (updateExpCount, CRT))
 
     fpQcFile.write('Number of GEO experiments not in DB: %s%s' % (len(notInDbList), CRT))
-    fpQcFile.write('Number of GEO experiments in DB and not in GEO: %s%s' % (len(notInGeoList), CRT))
 
     fpQcFile.write('%sList of GEO experiments not in DB: %s' % (CRT, CRT))
     fpQcFile.write(string.join(notInDbList, CRT))
-    fpQcFile.write('%sList of GEO experiments in DB and not in GEO: %s' % (CRT, CRT))
-    fpQcFile.write(string.join(notInGeoList, CRT))
 	    
     return
 
