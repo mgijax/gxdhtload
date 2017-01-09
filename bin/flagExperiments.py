@@ -24,8 +24,6 @@ import Set
 import sys
 
 db.setTrace()
-db.setAutoTranslate(False)
-db.setAutoTranslateBE(False)
 
 TAB = '\t'
 CRT = '\n'
