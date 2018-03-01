@@ -1,3 +1,9 @@
+TAG: gxdhtload-6-0-11-1
+DATE: 03/01/2018
+STAFF: sc
+CHANGES:
+1) TR12786 gxdhtload.sh - use api_key in eutils request
+
 TAG: gxdhtload-6-0-7-1
 TAG: gxdhtload-6-0-7-2
 DATE: 01/05/2017, 01/09/2017

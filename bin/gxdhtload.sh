@@ -266,7 +266,7 @@ do
     echo "fileCount: $fileCount"
     echo "retrieve_start: $retrieve_start"
 
-    wget -O ${GEO_XML_FILE}.${fileCount} "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=gds&version=2.0&query_key=${QUERY_KEY}&WebEnv=${WEB_ENV}&retstart=$retrieve_start&retmax=$retrieve_max"
+    wget -O ${GEO_XML_FILE}.${fileCount} "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=gds&version=2.0&query_key=${QUERY_KEY}&WebEnv=${WEB_ENV}&retstart=$retrieve_start&retmax=$retrieve_max&api_key=${EUTILS_API_KEY}"
     fileCount=`expr $fileCount + 1`
     retrieve_start=`expr $retrieve_start + $retrieve_max`
 done
