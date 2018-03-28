@@ -286,11 +286,11 @@ def reportStats():
     fpQcFile.write('%sGEO Update Report%s' % (CRT, CRT))
     fpQcFile.write('--------------------------------------------------%s' % CRT)
     fpQcFile.write('Number of GEO experiments in DB: %s%s' % (len(pubMedByExptDict), CRT))
-    fpQcFile.write('Number of GEO experiments in the input (at GEO): %s%s' % (expCount, CRT))
+    fpQcFile.write('Number of GEO experiments in the input (mouse experiments at GEO): %s%s' % (expCount, CRT))
     fpQcFile.write('Number of GEO experiments with PubMed ID(s)in the input: %s%s' % (len(geoPubMedDict), CRT))
     fpQcFile.write('Number of GEO experiments updated in DB: %s%s' % (updateExpCount, CRT))
 
-    fpQcFile.write('Number of GEO experiments not in DB: %s%s' % (len(notInDbList), CRT))
+    fpQcFile.write('Number of GEO experiments with PubMed ID(s) not in DB: %s%s' % (len(notInDbList), CRT))
 
     fpQcFile.write('%sList of GEO experiments not in DB: %s' % (CRT, CRT))
     fpQcFile.write(string.join(notInDbList, CRT))
