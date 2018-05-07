@@ -91,11 +91,20 @@ def initialize():
 	and a._MGIType_key = 1 ''', None)
     db.sql('''create index idx2 on inMGI(_Refs_key)''', None)
 
-    # get the set of experiments with pubmed IDs selected for expression
+    # get the set of experiments with pubmed IDs statused for:
+    # when this is turned back on, need to decide which status needs to be checked.
+    # 31576669 | Not Routed
+    # 31576670 | Routed
+    # 31576671 | Chosen
+    # 31576672 | Rejected
+    # 31576673 | Indexed
+    # 31576674 | Full-coded
     results = db.sql('''select p._Experiment_key, p.exptId, p.pubMedId, p._Refs_key
-	from BIB_Dataset_Assoc bd, inMGI p
-	where bd._DataSet_key = 1004
-	and bd._Refs_key = p._Refs_key''', 'auto')
+    	from inMGI p, BIB_Workflow_Status b
+	where p._Refs_key = b._Refs_key
+	and b._Group_key = 31576665
+	and b._Status_key in ()
+	and b.isCurrent = 1''', 'auto')
 
     # organize by experiment
     for r in results:

@@ -275,11 +275,12 @@ ALL_FILES=`ls ${INPUTDIR}/geo.xml.*`
 export ALL_FILES
 #echo "ALL_FILES: ${ALL_FILES}" 
 
+# TR12866/per Connie turn off until further notice
 # step three, programatically flat experiments for curation
-echo 'Running flagExperments.py'  | tee -a ${LOG_DIAG}
-${GXDHTLOAD}/bin/flagExperiments.py
-STAT=$?
-checkStatus ${STAT} "${GXDHTLOAD}/bin/flagExperiments.py"
+#echo 'Running flagExperments.py'  | tee -a ${LOG_DIAG}
+#${GXDHTLOAD}/bin/flagExperiments.py
+#STAT=$?
+#checkStatus ${STAT} "${GXDHTLOAD}/bin/flagExperiments.py"
 
 # step four, parse experiments/load new PubMedIds
 echo 'Running processGeo.py'  | tee -a ${LOG_DIAG}
