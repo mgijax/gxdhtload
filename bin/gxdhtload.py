@@ -311,7 +311,7 @@ def checkDate(rawText):
         if (1950 <= int(year) <= 2050):
             if (1 <= int(month) <= 12):
                 if (1 <= int(day) <= 31):
-                    #print 'return 1'
+                    print 'return 1'
                     return 1
     return 0
 
@@ -415,7 +415,7 @@ def process():
 	if description.find(SUPERSERIES) != -1:
 	    evalStateToUseKey = altEvalStateTermKey
 	    isSuperSeries = 1
-	#print 'final description: %s' % description
+	print 'final description: %s' % description
 
 	try:
 	    name = f['name'] 
@@ -424,25 +424,25 @@ def process():
 	except:
 	    name = ''
 	name = string.strip(name)
-	#print 'name: %s' % name
+	print 'name: %s' % name
 
 	try:
 	    primaryID = string.strip(f['accession']) # accession
 	except:
 	    primaryID = ''
-	#print 'primaryID: %s' % primaryID
+	print 'primaryID: %s' % primaryID
 	
 	try:
 	    sampleCount = f['samples'] # property, one
 	except:
 	    sampleCount = ''
-	#print 'sampleCount: %s' % sampleCount
+	print 'sampleCount: %s' % sampleCount
 
 	try:
 	    releasedate = f['releasedate'] # experiment, one
 	except:
 	    releasedate = ''
-	#print 'releasedate: %s' % releasedate
+	print 'releasedate: %s' % releasedate
 
         try:
 	    # experimentalfactor.name
@@ -459,13 +459,13 @@ def process():
 	    expFactorList = list(expFactorSet)
         except:
             expFactorList = []
-	#print 'expFactorList: %s' % expFactorList
+	print 'expFactorList: %s' % expFactorList
 
         try:
             lastupdatedate = f['lastupdatedate'] # experiment, one
         except:
             lastupdatedate = ''
-	#print 'lastupdatedate %s' % lastupdatedate
+	print 'lastupdatedate %s' % lastupdatedate
 
         try:
 	    # provider.contact, dictionary or list of dictionaries; need 
@@ -480,7 +480,7 @@ def process():
 	    providerList = list(providerSet)
         except:
             providerList = []
-	#print 'providerList: %s' % providerList
+	print 'providerList: %s' % providerList
 
         try:
 	    # experimenttype is string or list, property, 
@@ -491,7 +491,7 @@ def process():
 		experimenttypeList =  f['experimenttype']
         except:
             experimenttypeList = []
-	#print 'experimenttypeList: %s' % experimenttypeList
+	print 'experimenttypeList: %s' % experimenttypeList
 
 	# pick first valid experiment type and translate it to populate the
 	# exptype key
@@ -505,17 +505,20 @@ def process():
 
         try:
 	# PubMed IDs - bibliography.accession
+	# TR13116/check for duplicate pubmedids
 	    bibliographyList = []
 	    if type(f['bibliography']) == types.DictType: # dictionary
-		 bibliographyList.append(str(f['bibliography']['accession']))
+		 if str(f['bibliography']['accession']) not in bibliographyList:
+		 	bibliographyList.append(str(f['bibliography']['accession']))
 	    else: # ListType
 		for b in f['bibliography']: # for each dict in the list
-		    #print 'b: %s' % b
+		    print 'b: %s' % b
 		    if 'accession' in b:
-		        bibliographyList.append(str(b['accession']))
+			if str(b['accession']) not in bibliographyList:
+		        	bibliographyList.append(str(b['accession']))
 	except:
             bibliographyList = []
-	#print 'bibliographyList: %s' % (bibliographyList)
+	print 'bibliographyList: %s' % (bibliographyList)
 
 	# the template for properties:
 	propertyTemplate = "#====#%s%s%s#=#%s%s%s%s%s#==#%s#===#%s%s%s%s%s%s%s%s%s" % (TAB, propTypeKey, TAB, TAB, nextExptKey, TAB, mgiTypeKey, TAB, TAB, TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT )
@@ -552,7 +555,7 @@ def process():
 			updateExptCount += 1
 		    for b in newSet:
 			toLoad = propertyUpdateTemplate.replace('#=#', str(pubmedPropKey)).replace('#==#', str(b)).replace('#===#', str(nextSeqNum)).replace('#====#', str(nextPropKey)).replace('#=====#', str(updateExpKey))
-			#print 'toLoad: %s' % toLoad
+			print 'toLoad: %s' % toLoad
 			fpPropertyBcp.write(toLoad)
 			nextPropKey += 1
 	    # continue so we don't dup what is in the db
