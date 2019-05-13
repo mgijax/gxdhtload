@@ -143,9 +143,6 @@ def initialize():
 	    pubMedByExptDict[accid] = []
 	if value != None:
 	    pubMedByExptDict[accid].append(value)
-    print 'in database'
-    for x in pubMedByExptDict:
-	print '%s %s%s' % (x, pubMedByExptDict[x], CRT)
     db.useOneConnection(0)
     
     parseAll()
