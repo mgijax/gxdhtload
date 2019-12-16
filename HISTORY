@@ -1,3 +1,8 @@
+TAG: gxdhtload-6-0-14-4
+DATE: 12/16/2019
+STAFF: sc
+CHANGES: TR13212 - fix for null provider contact in json
+
 TAG: gxdhtload-6-0-14-3
 TAG: gxdhtload-6-0-14-2
 DATE: 05/13/2019
