@@ -465,10 +465,8 @@ def process():
 	    providerList = []
 	    if type(f['provider']) != types.ListType:
 		providerList = [f['provider']['contact']]
-		print 'providerList: %s' % providerList
 	    else:
 		for p in f['provider']:
-		     print "p['contact']: %s" % p['contact']
 		     if p['contact'] != None:
 			 providerList.append(p['contact'])
 	    providerSet = set(providerList)
