@@ -1,5 +1,3 @@
-#!/usr/local/bin/python
-
 '''
 #
 # flagExperiments.py
@@ -16,12 +14,11 @@
 #
 # TO DO - find experiments with multiple pubmed IDs that are selected for Expression
 '''
+import os
+import sys
+import Set
 import db
 import loadlib
-import os
-import string
-import Set
-import sys
 
 db.setTrace()
 
@@ -63,13 +60,13 @@ def initialize():
     try:
         fpQcFile = open(qcFileName, 'a')
     except:
-         print 'Cannot create %s' % qcFileName
+         print('Cannot create %s' % qcFileName)
 
     db.useOneConnection(1)
 
     # get all pubmed experiment properties for 'not evaluated' experiments
     db.sql('''select e._Experiment_key, a.accid as exptId, p.value as pubMedId
-	into temporary table pmProp
+        into temporary table pmProp
         from GXD_HTExperiment e, ACC_Accession a, MGI_Property p
         where e._EvaluationState_key = 20225941 
         and e._Experiment_key = a._Object_key
@@ -84,11 +81,11 @@ def initialize():
     # get set of experiments with pubMed IDs in MGI
     # experiments that have at least one pubmed ID in MGI will be updated
     db.sql('''select p.*, a._Object_key as _Refs_key
-	into temporary table inMGI
-	from pmProp p, ACC_Accession a
-	where p.pubMedId = a.accid
-	and a._LogicalDB_key = 29
-	and a._MGIType_key = 1 ''', None)
+        into temporary table inMGI
+        from pmProp p, ACC_Accession a
+        where p.pubMedId = a.accid
+        and a._LogicalDB_key = 29
+        and a._MGIType_key = 1 ''', None)
     db.sql('''create index idx2 on inMGI(_Refs_key)''', None)
 
     # get the set of experiments with pubmed IDs statused for:
@@ -100,21 +97,21 @@ def initialize():
     # 31576673 | Indexed
     # 31576674 | Full-coded
     results = db.sql('''select p._Experiment_key, p.exptId, p.pubMedId, p._Refs_key
-    	from inMGI p, BIB_Workflow_Status b
-	where p._Refs_key = b._Refs_key
-	and b._Group_key = 31576665
-	and b._Status_key in ()
-	and b.isCurrent = 1''', 'auto')
+        from inMGI p, BIB_Workflow_Status b
+        where p._Refs_key = b._Refs_key
+        and b._Group_key = 31576665
+        and b._Status_key in ()
+        and b.isCurrent = 1''', 'auto')
 
     # organize by experiment
     for r in results:
-	exptKey = r['_Experiment_key']
-	exptId = r['exptId']
-	pubMedId = r['pubMedId']
-	key = '%s|%s' % ( exptKey, exptId)
-	if exptKey not in updateDict:
-	    updateDict[key] = []
-	updateDict[key].append(pubMedId)
+        exptKey = r['_Experiment_key']
+        exptId = r['exptId']
+        pubMedId = r['pubMedId']
+        key = '%s|%s' % ( exptKey, exptId)
+        if exptKey not in updateDict:
+            updateDict[key] = []
+        updateDict[key].append(pubMedId)
 
     return
 
@@ -130,16 +127,16 @@ def process():
     #print 'in process'
     for key in updateDict:
         pubMedList = updateDict[key]
-        exptKey, exptId = string.split(key, '|')
-	updateList.append('%s%s%s%s' % (exptId, TAB, string.join(pubMedList, ', '), CRT))
+        exptKey, exptId = str.split(key, '|')
+        updateList.append('%s%s%s%s' % (exptId, TAB, str.join(', ', pubMedList), CRT))
         #print 'Updating %s %s with PubMed IDs %s' %  (exptKey, exptId, pubMedList)
-	db.sql('''Update GXD_HTExperiment
-		set _EvaluationState_key = %s,
-		evaluated_date = '%s',
-		_EvaluatedBy_key = %s,
-		modification_date = '%s',
-		_ModifiedBy_key = %s
-		where _Experiment_key = %s''' % (maybe, loadDate, userKey, loadDate, userKey, exptKey), None)
+        db.sql('''Update GXD_HTExperiment
+                set _EvaluationState_key = %s,
+                evaluated_date = '%s',
+                _EvaluatedBy_key = %s,
+                modification_date = '%s',
+                _ModifiedBy_key = %s
+                where _Experiment_key = %s''' % (maybe, loadDate, userKey, loadDate, userKey, exptKey), None)
     db.commit()
     return
 
@@ -151,7 +148,7 @@ def reportStats():
     fpQcFile.write("%sExperiments Flagged as 'maybe'%s" % (CRT, CRT))
     fpQcFile.write('--------------------------------------------------%s' % CRT)
     for line in updateList: 
-	 fpQcFile.write(line)
+         fpQcFile.write(line)
     fpQcFile.write('%sTotal: %s%s%s' % (CRT, len(updateList), CRT, CRT))
 #
 # main

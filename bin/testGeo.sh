@@ -8,4 +8,4 @@ fi
 
 . ${MGICONFIG}/master.config.sh
 
-./testGeo.py
+${PYTHON} ./testGeo.py

@@ -23,4 +23,4 @@ else
     exit 1
 fi
 
-./flagExperiments.py
+${PYTHON} ./flagExperiments.py

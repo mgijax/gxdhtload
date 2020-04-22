@@ -1,5 +1,3 @@
-#!/usr/local/bin/python
-
 '''
 #
 # testGeo.py
@@ -15,12 +13,11 @@
 #       - created TR12370
 #
 '''
+import os
+import sys
+import Set
 import db
 import loadlib
-import os
-import string
-import Set
-import sys
 
 TAB = '\t'
 CRT = '\n'
@@ -90,44 +87,44 @@ def initialize():
     try:
         fpInFile = open(inFileName, 'r')
     except:
-         print 'Cannot create %s' % inFileName
+         print('Cannot create %s' % inFileName)
     # create file descriptors
     try:
-	fpQcFile = open(qcFileName, 'w')
+        fpQcFile = open(qcFileName, 'w')
     except:
-	 print 'Cannot create %s' % qcFileName
+         print('Cannot create %s' % qcFileName)
     db.useOneConnection(1)
 
     # create the pubmed ID property lookup by GEO experiment
     # get all experiments with 2ndary GEO IDs, and their pubMed IDs if they 
     # have them
     db.sql('''select p._Object_key, p.value
-	into temporary table pubMedIds 
-	from MGI_Property p
-	where p._PropertyTerm_key = %s
-	and p._PropertyType_key = %s''' % (pubmedPropKey, propTypeKey), None)
+        into temporary table pubMedIds 
+        from MGI_Property p
+        where p._PropertyTerm_key = %s
+        and p._PropertyType_key = %s''' % (pubmedPropKey, propTypeKey), None)
     db.sql('''create index idx1 on pubMedIds(_Object_key)''', None)
     db.sql('''select e._Experiment_key, a.accid
-	into temporary table exp
-	from GXD_HTExperiment e, ACC_Accession a
-	where e._Experiment_key = a._Object_key
-	and a._MGIType_key = %s
-	and a._LogicalDB_key = %s''' % (mgiTypeKey, geoLdbKey), None)
+        into temporary table exp
+        from GXD_HTExperiment e, ACC_Accession a
+        where e._Experiment_key = a._Object_key
+        and a._MGIType_key = %s
+        and a._LogicalDB_key = %s''' % (mgiTypeKey, geoLdbKey), None)
     db.sql('''create index idx2 on exp(_Experiment_key)''', None)
     results = db.sql('''select e._Experiment_key, e.accid, p.value
-	from exp e
-	left outer join pubMedIds p on (e._Experiment_key = p._Object_key)''', 'auto')
+        from exp e
+        left outer join pubMedIds p on (e._Experiment_key = p._Object_key)''', 'auto')
     for r in results:
-	key = r['_Experiment_key']
-	accid = r['accid'] 
-	value = r['value']
+        key = r['_Experiment_key']
+        accid = r['accid'] 
+        value = r['value']
 
-	geoIdToKeyDict[accid] = key
+        geoIdToKeyDict[accid] = key
 
-	if accid not in pubMedByExptDict:
-	    pubMedByExptDict[accid] = []
-	if value != None:
-	    pubMedByExptDict[accid].append(value)
+        if accid not in pubMedByExptDict:
+            pubMedByExptDict[accid] = []
+        if value != None:
+            pubMedByExptDict[accid].append(value)
     
     db.useOneConnection(0)
     
@@ -136,11 +133,11 @@ def initialize():
 def parseFile():
     global geoPubMedDict
     for line in fpInFile.readlines():
-	geoId, pubMedIds = map(string.strip, string.split(line, TAB))
-	#print '%s:"%s"' % (geoId, pubMedIds)
-	if pubMedIds != '':
-	    geoPubMedDict[geoId] = string.split(pubMedIds, ';')
-	    #print geoPubMedDict[geoId]
+        geoId, pubMedIds = list(map(str.strip, str.split(line, TAB)))
+        #print '%s:"%s"' % (geoId, pubMedIds)
+        if pubMedIds != '':
+            geoPubMedDict[geoId] = str.split(pubMedIds, ';')
+            #print geoPubMedDict[geoId]
 
 #
 # Purpose: parse input file, QC, create bcp files
@@ -154,27 +151,27 @@ def process():
     global pubMedNotInDbDict
     
     for geoId in geoPubMedDict:
-	if geoId in pubMedByExptDict:
-	    geoPubMed = set(geoPubMedDict[geoId])
-	    mgdPubMed = set(pubMedByExptDict[geoId])
-	    if mgdPubMed == None:
-		mgdPubMed = set([])
-	    # find pubmed IDs in GEO not in GXD
-	    difference = geoPubMed.difference(mgdPubMed)
-	    print 'geoId: %s' % geoId
-	    print 'geoPubMed: %s' % geoPubMed
-	    print 'mgdPubMed: %s' % mgdPubMed
-	    print 'difference: %s' % difference
-	    print '\n'
-	    if difference:
-		pubMedNotInDbDict[geoId] = list(difference)
+        if geoId in pubMedByExptDict:
+            geoPubMed = set(geoPubMedDict[geoId])
+            mgdPubMed = set(pubMedByExptDict[geoId])
+            if mgdPubMed == None:
+                mgdPubMed = set([])
+            # find pubmed IDs in GEO not in GXD
+            difference = geoPubMed.difference(mgdPubMed)
+            print('geoId: %s' % geoId)
+            print('geoPubMed: %s' % geoPubMed)
+            print('mgdPubMed: %s' % mgdPubMed)
+            print('difference: %s' % difference)
+            print('\n')
+            if difference:
+                pubMedNotInDbDict[geoId] = list(difference)
     for g in pubMedNotInDbDict:
-	print 'geoId: %s difference: %s' % (g, pubMedNotInDbDict[g])
+        print('geoId: %s difference: %s' % (g, pubMedNotInDbDict[g]))
 def reportStats():
     fpQcFile.write("%sPubMed IDs in GEO (Connie's File) that are not in GXD%s" % (CRT, CRT))
     fpQcFile.write('--------------------------------------------------%s' % CRT)
     for g in pubMedNotInDbDict:
-	 fpQcFile.write('%s%s%s%s' % (g, TAB, pubMedNotInDbDict[g], CRT))
+         fpQcFile.write('%s%s%s%s' % (g, TAB, pubMedNotInDbDict[g], CRT))
     return
 
 #
@@ -198,4 +195,3 @@ parseFile()
 process()
 reportStats()
 closeFiles()
-
