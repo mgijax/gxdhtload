@@ -3,7 +3,7 @@
 #
 # Installation script
 #
-# 1) cp gxdhtload.config.default gxdhtload.config
+# 1) cp geo_htload.config.default geo_htload.config
 # 3) Install 
 #
 
@@ -33,7 +33,7 @@ fi
 cd `dirname $0`
 
 # establish the config files
-MAIN_CONFIG=gxdhtload.config
+MAIN_CONFIG=geo_htload.config
 
 # Make sure config file exists and source it
 if [ -r ${MAIN_CONFIG} ]
