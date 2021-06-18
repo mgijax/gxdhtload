@@ -1,0 +1,120 @@
+#format: sh
+#
+#  geo_htload.config
+#
+#  This file sets up environment variables that are needed  for the geo_htload
+#
+###########################################################################
+
+###########################################################################
+#
+#  GENERAL SETTINGS
+#
+###########################################################################
+
+#
+#  If the MGICONFIG environment variable does not have a local override,
+#  use the default "live" settings.
+#
+if [ "${MGICONFIG}" = "" ]
+then
+    MGICONFIG=/usr/local/mgi/live/mgiconfig
+    export MGICONFIG
+fi
+
+. ${MGICONFIG}/master.config.sh
+
+###########################################################################
+#
+#  LOAD SPECIFIC SETTINGS
+#
+###########################################################################
+
+#  Path name of the archive, logs, reports and output directories
+FILEDIR=${DATALOADSOUTPUT}/mgi/geo_htload
+ARCHIVEDIR=${FILEDIR}/archive
+LOGDIR=${FILEDIR}/logs
+RPTDIR=${FILEDIR}/reports
+OUTPUTDIR=${FILEDIR}/output
+INPUTDIR=${FILEDIR}/input
+
+# input/output
+INFILE_NAME=${DATADOWNLOADS}/www.ebi.ac.uk/arrayexpress.json
+
+QCFILE_NAME=${RPTDIR}/geo_htload_qc.rpt
+
+export FILEDIR ARCHIVEDIR LOGDIR RPTDIR OUTPUTDIR INPUTDIR INFILE_NAME
+export QCFILE_NAME
+
+# BCP file names
+EXPERIMENT_FILENAME=GXD_HTExperiment.bcp
+ACC_FILENAME=ACC_Accession.bcp
+VARIABLE_FILENAME=GXD_HTExperimentVariable.bcp
+PROPERTY_FILENAME=MGI_Property.bcp
+GEO_PROPERTY_FILENAME=MGI_Property-GEO.bcp
+
+export EXPERIMENT_FILENAME VARIABLE_FILENAME PROPERTY_FILENAME GEO_PROPERTY_FILENAME
+
+# Full paths to bcp files
+EXPERIMENT_BCP=${OUTPUTDIR}/${EXPERIMENT_FILENAME}
+ACC_BCP=${OUTPUTDIR}/${ACC_FILENAME}
+VARIABLE_BCP=${OUTPUTDIR}/${VARIABLE_FILENAME}
+PROPERTY_BCP=${OUTPUTDIR}/${PROPERTY_FILENAME}
+GEO_PROPERTY_BCP=${OUTPUTDIR}/${GEO_PROPERTY_FILENAME}
+
+export EXPERIMENT_BCP ACC_BCP VARIABLE_BCP PROPERTY_BCP GEO_PROPERTY_BCP
+
+#  Complete path name of the log files
+LOG_FILE=${LOGDIR}/geo_htload.log
+LOG_PROC=${LOGDIR}/geo_htload.proc.log
+LOG_DIAG=${LOGDIR}/geo_htload.diag.log
+LOG_CUR=${LOGDIR}/geo_htload.cur.log
+LOG_VAL=${LOGDIR}/geo_htload.val.log
+
+export LOG_FILE LOG_PROC LOG_DIAG LOG_CUR LOG_VAL
+
+#
+# GEO Experiment and sample file mirroring
+#
+# GEO UID file; we parse this for values to get GEO_XML_FILE
+GEO_UID_FILE=${INPUTDIR}/geo.uid.xml
+
+# GEO XML file
+GEO_DOWNLOADS=${DATADOWNLOADS}/eutils.ncbi.nlm.nih.gov.geo
+GEO_XML_FILE=${GEO_DOWNLOADS}/geo.xml
+
+# GEO Report file
+GEO_RPT_FILE=${RPTDIR}/geoUpdate.rpt
+
+# mirror log file
+GEO_LOG_FILE=${LOGDIR}/mirror_geo.log
+
+export GEO_DOWNLOADS GEO_UID_FILE GEO_XML_FILE GEO_RPT_FILE GEO_LOG_FILE
+
+#  Send debug messages to the diagnostic log (true or false)
+LOG_DEBUG=false
+
+export LOG_DEBUG
+
+#  The name of the job stream for the load
+JOBSTREAM=geo_htload
+
+export JOBSTREAM
+
+###########################################################################
+#
+#  MISCELLANEOUS SETTINGS
+#
+###########################################################################
+
+#  The name of the load for the subject of an email notification
+MAIL_LOADNAME="GEO HT load"
+
+#  Recipient list for mailing the log files (comma-separated)
+MAIL_LOG_PROC="mgiadmin"
+
+export MAIL_LOADNAME MAIL_LOG_PROC
+
+INSTALLDIR=${GXDHTLOAD}
+
+export INSTALLDIR
