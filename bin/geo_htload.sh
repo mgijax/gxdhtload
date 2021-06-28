@@ -124,6 +124,10 @@ fi
 # sets "JOBKEY"
 preload ${OUTPUTDIR}
 
+# get the listing of experiment files
+EXP_FILES=`ls ${GEO_DOWNLOADS}/geo.xml.*`
+export EXP_FILES
+
 #
 #  run the load
 #

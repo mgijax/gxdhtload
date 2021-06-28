@@ -22,6 +22,7 @@ import json
 import db
 import loadlib
 import accessionlib
+import xml.etree.cElementTree as ET
 
 TAB = '\t'
 CRT = '\n'
@@ -88,9 +89,10 @@ sourceKey = 20475431
 #
 # File Descriptors:
 #
-# ArrayExpress file and descriptor
-inFileName = os.environ['INFILE_NAME']
-fpInFile = None
+
+# root filename
+expermentFile = os.environ['GEO_XML_FILE']
+sampleTemplate = os.environ['GEO_SAMPLE_TEMPLATE']
 
 # QC file and descriptor
 qcFileName = os.environ['QCFILE_NAME']
@@ -120,11 +122,12 @@ namePropKey = 20475428
 pubmedPropKey =	20475430 
 propTypeKey = 1002
 
-# Number of experiments in AE json file
+# Number of experiments in GEO xml files
 expCount = 0
 
 # Number experiments loaded
-loadedCount = 0
+# starts with 1 because we count after we come to the next record
+loadedCount = 1
 
 #Number of experiments already in the database
 inDbCount = 0
@@ -161,6 +164,9 @@ exptTypeTransDict = {}
 # {AE ID: [pubmedId1, ..., pubmedIdn], ...}
 pubMedByExptDict = {}
 
+# experiment types skipped because not in translation
+expTypesSkippedSet = set()
+
 #
 # Purpose:  Open file descriptors, get next primary keys, create lookups
 # Returns: 1 if file does not exist or is not readable, else 0
@@ -169,15 +175,11 @@ pubMedByExptDict = {}
 # Throws: Nothing
 #
 def initialize():
-    global fpInFile, fpQcFile, fpExperimentBcp, fpAccBcp, fpVariableBcp 
+    global fpQcFile, fpExperimentBcp, fpAccBcp, fpVariableBcp 
     global fpPropertyBcp, jFile, nextExptKey, nextAccKey, nextExptVarKey
     global nextPropKey
 
     # create file descriptors
-    try:
-        fpInFile = open(inFileName, 'r')
-    except:
-        print('%s does not exist' % inFileName)
     try:
         fpQcFile = open(qcFileName, 'w')
     except:
@@ -203,7 +205,6 @@ def initialize():
     except:
         print('Cannot create %s' % propertyFileName)
 
-    jFile = json.load(fpInFile)
 
     db.useOneConnection(1)
 
@@ -240,7 +241,7 @@ def initialize():
     results = db.sql('''select accid, _Object_key
         from ACC_Accession
         where _MGIType_key = 42
-        and _LogicalDB_key = 189
+        and _LogicalDB_key = 190
         and preferred = 1''', 'auto')
     for r in results:
         primaryIdDict[r['accid']] = r['_Object_key']
@@ -353,6 +354,25 @@ def calculateGeoId(primaryID):
         return primaryID.replace(AEGEOPREFIX, GEOPREFIX)
     else:
         return ''
+
+#
+# Purpose: Loops through all metadata files sending them to parser
+# Returns:
+# Assumes: Nothing
+# Effects:
+# Throws: Nothing
+#
+
+def processAll():
+    print('expID%ssampleList%stitle%ssummary%sisSuperSeries%spdat%sChosen Expt Type%sn_samples%spubmedList%s' % (TAB, TAB, TAB, TAB, TAB, TAB, TAB, TAB, TAB))
+    #first = 1
+    for expFile in str.split(os.environ['EXP_FILES']):
+        #print(expFile)
+        #if first == 1:
+            process(expFile)
+            #first = 0
+    return
+
 #
 # Purpose: parse input file, QC, create bcp files
 # Returns: 1 if file can be read/processed correctly, else 0
@@ -360,7 +380,105 @@ def calculateGeoId(primaryID):
 # Effects: Creates files in the file system
 # Throws: Nothing
 #
-def process():
+
+def process(expFile):
+    global propertiesDict, expCount, loadedCount, inDbCount, invalidSampleCountDict
+    global invalidReleaseDateDict, invalidUpdateDateDict, noIdList
+    global nextExptKey, nextAccKey, nextExptVarKey, nextPropKey
+    global updateExptCount, expTypesSkippedSet
+
+    # scratch;
+    #tree = ET.parse(expFile)
+    #root = tree.getroot()
+    #for child in root:
+    #    print(child.tag, child.attrib)
+    # DocumentSummarySet {'status': 'OK'}
+    #for exp in root.iter('DocumentSummary'):
+    #    print(exp.attrib)
+    # {'uid': '200014873'}
+    #event,root = context.next() next gives an error
+    context = ET.iterparse(expFile, events=("start","end"))
+    context = iter(context)
+    
+    level = 0
+    expID = ''
+    title = ''
+    summary = ''
+    isSuperSeries = 'no'
+    pdat = ''
+    gdsType = ''
+    n_samples = ''
+    pubmedList = []
+    sampleList = [] # list of samplIDs
+    exptTypeKey = 0
+    for event, elem in context:
+        if level == 4 : 
+            # Accession tag at level 4 tells us we have a new record
+            if elem.tag == 'Accession':
+                expCount += 1
+                # pick first valid experiment type and translate it to populate the
+                # exptype key
+                #print('gdsType: %s' % gdsType)
+                typeList = list(map(str.strip, gdsType.split(';')))
+                for type in typeList:
+                    #print ('type: %s' % type)
+                    #type = str.strip(type)
+                    if type in exptTypeTransDict:
+                        exptTypeKey= exptTypeTransDict[type]
+                        #print('type: %s key: %s' % (type, key))
+                        break
+                if expID in primaryIdDict:
+                    inDbCount += 1
+                if exptTypeKey != 0:
+                    # other wise print the row and reset the attributes
+                    loadedCount += 1
+                    print ('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (expID, TAB, ', '.join(sampleList), TAB, title, TAB, summary, TAB, isSuperSeries, TAB, pdat, TAB, type, TAB, n_samples, TAB, ', '.join(pubmedList)) )
+                else:
+                     expTypesSkippedSet.update(typeList)
+                expID = elem.text
+                sampleList = []
+                title = ''
+                summary = ''
+                isSuperSeries = 'no'  
+                pdat = ''
+                gdsType = ''
+                n_samples = ''
+                pubmedList = []
+                exptTypeKey = 0
+            elif elem.tag == 'title':
+                title = elem.text
+                #print('expID: %s title: %s' % (expID, title))
+            elif elem.tag == 'summary':    
+                summary = elem.text
+                #print('summary: %s' % summary)
+                if summary.find(SUPERSERIES) != -1:
+                    isSuperSeries =  'yes'
+            elif elem.tag == 'PDAT':
+                pdat = elem.text
+                #print('pdat: %s' % pdat)
+            elif elem.tag == 'gdsType':
+                gdsType = elem.text
+                #print('gdsType: %s' % gdsType)
+            elif elem.tag == 'n_samples':
+                n_samples = elem.text
+                #print('n_samples: %s' % n_samples)
+        if event=='start':
+            level += 1
+            #print('level: %s elemTag: %s elemText: %s' % (level, elem.tag, elem.text))
+        elif elem.tag == 'int':
+            id = elem.text
+            #print('id: %s' % id)
+            pubmedList.append(id)
+        elif level == 6 and elem.tag == 'Accession':
+            sampleList.append(elem.text)
+        if event == 'end':
+            level -= 1
+        #if event == 'start' and level == 4 and elem.tag == 'Accession':
+        #    print('event: %s level: %s elem: %s' % (event, level, elem.text))
+
+    elem.clear()
+
+def oldprocess():
     global propertiesDict, expCount, loadedCount, inDbCount, invalidSampleCountDict
     global invalidReleaseDateDict, invalidUpdateDateDict, noIdList
     global nextExptKey, nextAccKey, nextExptVarKey, nextPropKey
@@ -682,6 +800,25 @@ def process():
     return
 
 def writeQC():
+    global expTypesSkippedSet
+    fpQcFile.write('GEO HT Raw Data Load QC%s%s%s' % (CRT, CRT, CRT))
+
+    fpQcFile.write('Number of experiments in the input: %s%s%s' % \
+        (expCount, CRT, CRT))
+    fpQcFile.write('Number of experiments already in the database: %s%s%s' %\
+         (inDbCount, CRT, CRT))
+    fpQcFile.write('Number of experiments loaded: %s%s%s' % \
+        (loadedCount, CRT, CRT))
+
+    fpQcFile.write('GEO Experiment Types Skipped because not in Translation:%s' % CRT)
+    ct = 0
+    expTypesSkippedSet = sorted(expTypesSkippedSet)
+    for type in expTypesSkippedSet:
+        fpQcFile.write('    %s%s' %  (type, CRT))
+        ct += 1
+    fpQcFile.write('Total: %s%s%s' % (ct, CRT, CRT))
+
+def oldwriteQC():
     fpQcFile.write('GXD HT Raw Data Load QC%s%s%s' % (CRT, CRT, CRT))
 
     fpQcFile.write('Number of experiments in the input: %s%s' % \
@@ -750,7 +887,6 @@ def writeQC():
 #
 def closeFiles():
 
-    fpInFile.close()
     fpQcFile.close()
     fpExperimentBcp.close()
     fpAccBcp.close()
@@ -763,6 +899,6 @@ def closeFiles():
 #
 
 initialize()
-process()
+processAll()
 writeQC()
 closeFiles()

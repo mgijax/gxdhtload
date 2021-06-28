@@ -87,8 +87,8 @@ fi
 #
 # step one get query key, web env and query count
 #
-wget  -a ${LOG} -O $GEO_UID_FILE "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=gds&term=GSE[ETYP]+AND+Mus[ORGN]&retmax=300000&usehistory=y&datetype=pdat&reldate=36500"
-
+wget  -a ${LOG} -O $GEO_UID_FILE "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=gds&term=GSE[ETYP]+AND+Mus[ORGN]&retmax=300000&usehistory=y&datetype=pdat"
+# &reldate=36500
 QUERY_KEY=`cat ${GEO_UID_FILE} | grep '<QueryKey>' | cut -d'>' -f8 | cut -d'<' -f1`
 WEB_ENV=`cat ${GEO_UID_FILE} | grep '<WebEnv>' | cut -d'>' -f10 | cut -d'<' -f1`
 GEO_COUNT=`cat ${GEO_UID_FILE} | grep '<Count>' | cut -d'>' -f2 | cut -d'<' -f1`
