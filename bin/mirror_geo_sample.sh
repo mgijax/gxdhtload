@@ -26,8 +26,8 @@ touch ${LOG}
 
 cd ${GEO_DOWNLOADS}
 
-#ALL_FILES=`ls ${GEO_DOWNLOADS}/geo.xml.*`
-ALL_FILES="${GEO_DOWNLOADS}/geo.xml.1"
+ALL_FILES=`ls ${GEO_DOWNLOADS}/geo.xml.*`
+#ALL_FILES="${GEO_DOWNLOADS}/geo.xml.1"
 export ALL_FILES
 
 echo 'Running mirror_geo_sample.py'  | tee -a ${LOG}
