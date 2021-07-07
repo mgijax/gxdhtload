@@ -90,8 +90,8 @@ sourceKey = 20475431
 # File Descriptors:
 #
 
-# root filename
-expermentFile = os.environ['GEO_XML_FILE']
+# to form the sample file to process
+geoDownloads = os.environ['GEO_DOWNLOADS']
 sampleTemplate = os.environ['GEO_SAMPLE_TEMPLATE']
 
 # QC file and descriptor
@@ -129,9 +129,6 @@ expCount = 0
 # starts with 1 because we count after we come to the next record
 loadedCount = 1
 
-#Number of experiments already in the database
-inDbCount = 0
-
 # Number of experiments in the db whose pubmed IDs were updated
 updateExptCount = 0
 
@@ -166,6 +163,9 @@ pubMedByExptDict = {}
 
 # experiment types skipped because not in translation
 expTypesSkippedSet = set()
+
+# experments in the database skipped
+expIdsInDbSet = set()
 
 #
 # Purpose:  Open file descriptors, get next primary keys, create lookups
@@ -240,9 +240,8 @@ def initialize():
     # Create experiment ID lookup
     results = db.sql('''select accid, _Object_key
         from ACC_Accession
-        where _MGIType_key = 42
-        and _LogicalDB_key = 190
-        and preferred = 1''', 'auto')
+        where _MGIType_key = 42 -- GXD HT Experiment
+        and _LogicalDB_key = 190 -- GEO Series''', 'auto')
     for r in results:
         primaryIdDict[r['accid']] = r['_Object_key']
 
@@ -382,10 +381,10 @@ def processAll():
 #
 
 def process(expFile):
-    global propertiesDict, expCount, loadedCount, inDbCount, invalidSampleCountDict
+    global propertiesDict, expCount, loadedCount, invalidSampleCountDict
     global invalidReleaseDateDict, invalidUpdateDateDict, noIdList
     global nextExptKey, nextAccKey, nextExptVarKey, nextPropKey
-    global updateExptCount, expTypesSkippedSet
+    global updateExptCount, expTypesSkippedSet, expIdsInDbSet
 
     # scratch;
     #tree = ET.parse(expFile)
@@ -407,35 +406,54 @@ def process(expFile):
     isSuperSeries = 'no'
     pdat = ''
     gdsType = ''
+    type = ''
     n_samples = ''
     pubmedList = []
     sampleList = [] # list of samplIDs
     exptTypeKey = 0
+    inDb = 0
     for event, elem in context:
         if level == 4 : 
             # Accession tag at level 4 tells us we have a new record
             if elem.tag == 'Accession':
                 expCount += 1
-                # pick first valid experiment type and translate it to populate the
-                # exptype key
-                #print('gdsType: %s' % gdsType)
+                # pick first valid experiment type and translate it 
                 typeList = list(map(str.strip, gdsType.split(';')))
+                #if expID == 'GSE154092':
+                #print('typeList: %s' % typeList)
                 for type in typeList:
+                    #if expID == 'GSE154092':
                     #print ('type: %s' % type)
                     #type = str.strip(type)
                     if type in exptTypeTransDict:
                         exptTypeKey= exptTypeTransDict[type]
-                        #print('type: %s key: %s' % (type, key))
+                        #if expID == 'GSE154092':
+                        #print('type: %s key: %s' % (type, exptTypeKey))
                         break
                 if expID in primaryIdDict:
-                    inDbCount += 1
-                if exptTypeKey != 0:
+                    inDb = 1
+                    expIdsInDbSet.add(expID)
+                print('expID: %s' % expID)
+                print('isSuperSeries: %s' % isSuperSeries)
+                print('title: %s' % (title))
+                print('summary: %s' % summary)
+                print('gdsType: %s' % gdsType)
+                print('type: %s key: %s' % (type, exptTypeKey))
+                print('pdat: %s' % pdat)
+                print('n_samples: %s' % n_samples)
+                print('sampleList: %s' % sampleList)
+                print('pubmedList: %s' % pubmedList)
+
+                if exptTypeKey != 0 and isSuperSeries == 'no' and inDb == 0:
                     # other wise print the row and reset the attributes
                     loadedCount += 1
                     print ('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (expID, TAB, ', '.join(sampleList), TAB, title, TAB, summary, TAB, isSuperSeries, TAB, pdat, TAB, type, TAB, n_samples, TAB, ', '.join(pubmedList)) )
+                    processSamples(sampleList)
                 else:
                      expTypesSkippedSet.update(typeList)
                 expID = elem.text
+                #if expID == 'GSE154092':
+                #print('expID: %s' % expID)
                 sampleList = []
                 title = ''
                 summary = ''
@@ -445,11 +463,14 @@ def process(expFile):
                 n_samples = ''
                 pubmedList = []
                 exptTypeKey = 0
+                inDb = 0
             elif elem.tag == 'title':
                 title = elem.text
-                #print('expID: %s title: %s' % (expID, title))
+                #if expID == 'GSE154092':
+                #print('title: %s' % (title))
             elif elem.tag == 'summary':    
                 summary = elem.text
+                #if expID == 'GSE154092':
                 #print('summary: %s' % summary)
                 if summary.find(SUPERSERIES) != -1:
                     isSuperSeries =  'yes'
@@ -458,9 +479,11 @@ def process(expFile):
                 #print('pdat: %s' % pdat)
             elif elem.tag == 'gdsType':
                 gdsType = elem.text
+                #if expID == 'GSE154092':
                 #print('gdsType: %s' % gdsType)
             elif elem.tag == 'n_samples':
                 n_samples = elem.text
+                #if expID == 'GSE154092':
                 #print('n_samples: %s' % n_samples)
         if event=='start':
             level += 1
@@ -468,15 +491,22 @@ def process(expFile):
         elif elem.tag == 'int':
             id = elem.text
             #print('id: %s' % id)
-            pubmedList.append(id)
+            #pubmedList.append(id)
         elif level == 6 and elem.tag == 'Accession':
+            #if expID == 'GSE154092':
+            #print('sampleID: %s' % elem.text)
             sampleList.append(elem.text)
         if event == 'end':
             level -= 1
         #if event == 'start' and level == 4 and elem.tag == 'Accession':
         #    print('event: %s level: %s elem: %s' % (event, level, elem.text))
-
+    
     elem.clear()
+
+def processSamples(sampleList):
+    for id in sampleList:
+        sampleFile = '%s%s' % (id, sampleTemplate)
+        print('%s/%s' % (geoDownloads, sampleFile))
 
 def oldprocess():
     global propertiesDict, expCount, loadedCount, inDbCount, invalidSampleCountDict
@@ -800,23 +830,26 @@ def oldprocess():
     return
 
 def writeQC():
-    global expTypesSkippedSet
+    global expTypesSkippedSet, expIdsInDbSet
+
     fpQcFile.write('GEO HT Raw Data Load QC%s%s%s' % (CRT, CRT, CRT))
 
     fpQcFile.write('Number of experiments in the input: %s%s%s' % \
         (expCount, CRT, CRT))
-    fpQcFile.write('Number of experiments already in the database: %s%s%s' %\
-         (inDbCount, CRT, CRT))
     fpQcFile.write('Number of experiments loaded: %s%s%s' % \
         (loadedCount, CRT, CRT))
 
-    fpQcFile.write('GEO Experiment Types Skipped because not in Translation:%s' % CRT)
-    ct = 0
+    fpQcFile.write('GEO Experiment Types Skipped because not in Translation: %s' % (len(expTypesSkippedSet)))
     expTypesSkippedSet = sorted(expTypesSkippedSet)
     for type in expTypesSkippedSet:
         fpQcFile.write('    %s%s' %  (type, CRT))
-        ct += 1
-    fpQcFile.write('Total: %s%s%s' % (ct, CRT, CRT))
+
+    fpQcFile.write('%sExperiments already in the database:%s%s' %\
+         (CRT, len(expIdsInDbSet), CRT))
+    expIdsInDbSet = sorted(expIdsInDbSet)
+    for id in expIdsInDbSet:
+        fpQcFile.write ('    %s%s' %  (id, CRT))
+
 
 def oldwriteQC():
     fpQcFile.write('GXD HT Raw Data Load QC%s%s%s' % (CRT, CRT, CRT))
