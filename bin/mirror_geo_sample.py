@@ -50,6 +50,7 @@ ftpFileTemplate = "~id~_family.xml.tgz"
 #
 def parseAll():
     fpInFile = None
+    print('ALL_FILES: %s' % os.environ['ALL_FILES'])
     for file in str.split(os.environ['ALL_FILES']):
         try:
             fpInFile = open(file, 'r')
@@ -92,7 +93,12 @@ def process():
 
         # create url
         print(id)
-        xPart = id[:-3] + 'nnn'
+        if len(id) == 4:
+            xPart = id[:-1] + 'nnn'
+        if len(id) == 5:
+            xPart = id[:-2] + 'nnn'
+        else:
+            xPart = id[:-3] + 'nnn'
         print('xPart: %s' % xPart)
         url = ftpUrlTemplate.replace('~x~', xPart)
         url = url.replace('~id~', id)
@@ -101,16 +107,24 @@ def process():
         print(url)
 
         # create command and run it
-        cmd = 'wget -O %s/%s %s' % (GEO_DOWNLOADS, file, url)
+        # -nc no clobber - if the file exists, don't overwrite it
+        cmd = 'wget -nc -O %s/%s %s' % (GEO_DOWNLOADS, file, url)
         print(cmd)
         result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
         stdout = result.stdout
         stderr = result.stderr
         statusCode = result.returncode
         print('wget statusCode: %s stderr: %s' % (statusCode, stderr))
+        print ('type(statusCode): %s' % type(statusCode))
 
+        # checked to see if the unzipped file exists, if it does don't unzip
+        unzipped = '%s/%s' % (GEO_DOWNLOADS, file[:-4])
+        isFile = os.path.isfile(unzipped)
+        if isFile:
+            print('Already exists: %s' % unzipped)
+            continue
         # untar/unzip the file
-        cmd = '/usr/bin/tar zxvf %s/%s ' % (GEO_DOWNLOADS, file) 
+        cmd = '/usr/bin/tar -xzvf %s/%s ' % (GEO_DOWNLOADS, file) 
         print(cmd)
         result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
         stdout = result.stdout
