@@ -22,7 +22,7 @@ import json
 import db
 import loadlib
 import accessionlib
-import xml.etree.cElementTree as ET
+import xml.etree.ElementTree as ET
 
 TAB = '\t'
 CRT = '\n'
@@ -126,8 +126,7 @@ propTypeKey = 1002
 expCount = 0
 
 # Number experiments loaded
-# starts with 1 because we count after we come to the next record
-loadedCount = 1
+loadedCount = 0
 
 # Number of experiments in the db whose pubmed IDs were updated
 updateExptCount = 0
@@ -164,8 +163,17 @@ pubMedByExptDict = {}
 # experiment types skipped because not in translation
 expTypesSkippedSet = set()
 
-# experments in the database skipped
+# experiments in the database skipped
 expIdsInDbSet = set()
+
+# experiment ids skipped because expt type not in translatioin
+expIdSkippedNoTransSet = set()
+
+# all experiment ids 
+allExptIdList = []
+
+# superseries in input that are not already in the database
+superSeriesNotInDbCount = 0
 
 #
 # Purpose:  Open file descriptors, get next primary keys, create lookups
@@ -363,13 +371,14 @@ def calculateGeoId(primaryID):
 #
 
 def processAll():
-    print('expID%ssampleList%stitle%ssummary%sisSuperSeries%spdat%sChosen Expt Type%sn_samples%spubmedList%s' % (TAB, TAB, TAB, TAB, TAB, TAB, TAB, TAB, TAB))
-    #first = 1
+    #print('expID%ssampleList%stitle%ssummary%sisSuperSeries%spdat%sChosen Expt Type%sn_samples%spubmedList%s' % (TAB, TAB, TAB, TAB, TAB, TAB, TAB, TAB, TAB))
+    print ('expID%ssampleID%sdescription%stitle%ssType%ssource%staxid%streatmentProt%smolecule%s' % (TAB, TAB, TAB, TAB, TAB, TAB, TAB, TAB, CRT))
+    first = 1
     for expFile in str.split(os.environ['EXP_FILES']):
         #print(expFile)
-        #if first == 1:
+        if first == 1:
             process(expFile)
-            #first = 0
+            first = 0
     return
 
 #
@@ -383,19 +392,9 @@ def processAll():
 def process(expFile):
     global propertiesDict, expCount, loadedCount, invalidSampleCountDict
     global invalidReleaseDateDict, invalidUpdateDateDict, noIdList
-    global nextExptKey, nextAccKey, nextExptVarKey, nextPropKey
-    global updateExptCount, expTypesSkippedSet, expIdsInDbSet
+    global nextExptKey, nextAccKey, nextExptVarKey, nextPropKey, superSeriesNotInDbCount
+    global updateExptCount, expTypesSkippedSet, expIdsInDbSet, expIdSkippedNoTransSet
 
-    # scratch;
-    #tree = ET.parse(expFile)
-    #root = tree.getroot()
-    #for child in root:
-    #    print(child.tag, child.attrib)
-    # DocumentSummarySet {'status': 'OK'}
-    #for exp in root.iter('DocumentSummary'):
-    #    print(exp.attrib)
-    # {'uid': '200014873'}
-    #event,root = context.next() next gives an error
     context = ET.iterparse(expFile, events=("start","end"))
     context = iter(context)
     
@@ -406,107 +405,188 @@ def process(expFile):
     isSuperSeries = 'no'
     pdat = ''
     gdsType = ''
-    type = ''
+    exptType = ''
     n_samples = ''
     pubmedList = []
     sampleList = [] # list of samplIDs
     exptTypeKey = 0
     inDb = 0
     for event, elem in context:
+        # start of a record - reset everything
+        if event=='end' and elem.tag == 'DocumentSummary':
+            expCount += 1
+            allExptIdList.append(expID)
+            # pick first valid experiment type and translate it
+            typeList = list(map(str.strip, gdsType.split(';')))
+
+            for exptType in typeList:
+                if exptType in exptTypeTransDict:
+                    exptTypeKey= exptTypeTransDict[exptType]
+                    break
+            if expID in primaryIdDict:
+                inDb = 1
+                expIdsInDbSet.add(expID)
+            elif exptTypeKey == 0:
+                # experiments whose type does not translate and is not already in the db
+                expIdSkippedNoTransSet.add(expID)
+            else:
+                # number of superseries not already caught because of un translated
+                # exptType or already in DB
+                if isSuperSeries == 'yes' and exptTypeKey != 0:
+                    superSeriesNotInDbCount +=1
+            # #print out the last record for debug
+            # print('expID: %s' % expID)
+            # print('isSuperSeries: %s' % isSuperSeries)
+            # print('title: %s' % (title))
+            # print('summary: %s' % summary)
+            # print('gdsType: %s' % gdsType)
+            # print('exptType: %s key: %s' % (exptType, exptTypeKey))
+            # print('pdat: %s' % pdat)
+            # print('n_samples: %s' % n_samples)
+            # print('sampleList: %s' % sampleList)
+            # print('pubmedList: %s' % pubmedList)
+            #print('exptTypeKey: %s isSuperSeries: %s inDb: %s' % (exptTypeKey, isSuperSeries, inDb))
+            if exptTypeKey != 0 and isSuperSeries == 'no' and inDb == 0:
+                # print the row for testing purposes
+                loadedCount += 1
+                #print ('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (expID, TAB, ', '.join(sampleList), TAB, title, TAB, summary, TAB, isSuperSeries, TAB, pdat, TAB, exptType, TAB, n_samples, TAB, ', '.join(pubmedList)) )
+
+                # now process the samples
+                processSamples(expID, n_samples)
+            else:
+                 expTypesSkippedSet.update(typeList)
+            title = ''
+            summary = ''
+            isSuperSeries = 'no'
+            pdat = ''
+            gdsType = ''
+            n_samples = ''
+            pubmedList = []
+            sampleList = []
+            exptTypeKey = 0
+            inDb = 0
+        
         if level == 4 : 
             # Accession tag at level 4 tells us we have a new record
             if elem.tag == 'Accession':
-                expCount += 1
-                # pick first valid experiment type and translate it 
-                typeList = list(map(str.strip, gdsType.split(';')))
-                #if expID == 'GSE154092':
-                #print('typeList: %s' % typeList)
-                for type in typeList:
-                    #if expID == 'GSE154092':
-                    #print ('type: %s' % type)
-                    #type = str.strip(type)
-                    if type in exptTypeTransDict:
-                        exptTypeKey= exptTypeTransDict[type]
-                        #if expID == 'GSE154092':
-                        #print('type: %s key: %s' % (type, exptTypeKey))
-                        break
-                if expID in primaryIdDict:
-                    inDb = 1
-                    expIdsInDbSet.add(expID)
-                print('expID: %s' % expID)
-                print('isSuperSeries: %s' % isSuperSeries)
-                print('title: %s' % (title))
-                print('summary: %s' % summary)
-                print('gdsType: %s' % gdsType)
-                print('type: %s key: %s' % (type, exptTypeKey))
-                print('pdat: %s' % pdat)
-                print('n_samples: %s' % n_samples)
-                print('sampleList: %s' % sampleList)
-                print('pubmedList: %s' % pubmedList)
-
-                if exptTypeKey != 0 and isSuperSeries == 'no' and inDb == 0:
-                    # other wise print the row and reset the attributes
-                    loadedCount += 1
-                    print ('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (expID, TAB, ', '.join(sampleList), TAB, title, TAB, summary, TAB, isSuperSeries, TAB, pdat, TAB, type, TAB, n_samples, TAB, ', '.join(pubmedList)) )
-                    processSamples(sampleList)
-                else:
-                     expTypesSkippedSet.update(typeList)
                 expID = elem.text
-                #if expID == 'GSE154092':
-                #print('expID: %s' % expID)
-                sampleList = []
-                title = ''
-                summary = ''
-                isSuperSeries = 'no'  
-                pdat = ''
-                gdsType = ''
-                n_samples = ''
-                pubmedList = []
-                exptTypeKey = 0
-                inDb = 0
             elif elem.tag == 'title':
                 title = elem.text
-                #if expID == 'GSE154092':
-                #print('title: %s' % (title))
             elif elem.tag == 'summary':    
                 summary = elem.text
-                #if expID == 'GSE154092':
-                #print('summary: %s' % summary)
                 if summary.find(SUPERSERIES) != -1:
                     isSuperSeries =  'yes'
             elif elem.tag == 'PDAT':
                 pdat = elem.text
-                #print('pdat: %s' % pdat)
             elif elem.tag == 'gdsType':
                 gdsType = elem.text
-                #if expID == 'GSE154092':
-                #print('gdsType: %s' % gdsType)
             elif elem.tag == 'n_samples':
                 n_samples = elem.text
-                #if expID == 'GSE154092':
-                #print('n_samples: %s' % n_samples)
         if event=='start':
             level += 1
             #print('level: %s elemTag: %s elemText: %s' % (level, elem.tag, elem.text))
         elif elem.tag == 'int':
             id = elem.text
             #print('id: %s' % id)
-            #pubmedList.append(id)
+            pubmedList.append(id)
         elif level == 6 and elem.tag == 'Accession':
-            #if expID == 'GSE154092':
-            #print('sampleID: %s' % elem.text)
             sampleList.append(elem.text)
         if event == 'end':
             level -= 1
-        #if event == 'start' and level == 4 and elem.tag == 'Accession':
-        #    print('event: %s level: %s elem: %s' % (event, level, elem.text))
     
     elem.clear()
 
-def processSamples(sampleList):
-    for id in sampleList:
-        sampleFile = '%s%s' % (id, sampleTemplate)
-        print('%s/%s' % (geoDownloads, sampleFile))
+def processSamples(expID, n_samples):
+    #print('%sexpID: ' % (CRT, expID))
+    sampleFile = '%s%s' % (expID, sampleTemplate)
+    #print('%s/%s' % (geoDownloads, sampleFile))
+    samplePath = '%s/%s' % (geoDownloads, sampleFile)
+    context = ET.iterparse(samplePath, events=("start","end"))
+    context = iter(context)
+
+    level = 0
+    sampleID = ''
+    description = ''
+    title = ''
+    sType = ''
+
+    # The attributes within a Channel Tag
+    sourceList = []
+    taxidList = []
+    treatmentProtList = []
+    moleculeList = []
+
+    # Channel-Count, there can be 1 or 2, need for sequence of sets of source/taxid/treatment/molecule
+    #cCount = 0 
+
+    for event, elem in context:
+        if event == 'start':
+            level += 1
+        if event == 'end':
+            level -= 1
+        if event == 'end' and elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Sample':
+            print ('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (expID, TAB, sampleID, TAB, description, TAB, title, TAB, sType, TAB, ', '.join(sourceList), TAB,  ', '.join(taxidList), TAB,  ', '.join(treatmentProtList), TAB,  ', '.join(moleculeList)))
+            # we are at the end of a sample, reset
+            sampleID = ''
+            description =  ''
+            title = ''
+            sType = ''
+            sourceList = []
+            taxidList = []
+            treatmentProtList = []
+            moleculeList = []
+        #if event == 'end':
+        #    print('level: %s' % level)
+        #    print('event: %s' % event)
+        #    print('elem.tag/text: %s %s' % (elem.tag, elem.text))
+        #    print('elem.attrib: %s' % elem.attrib)
+        if level == 2 and elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Sample':
+                sampleID = str.strip(elem.get('iid'))
+                #print('sampleID: %s' % sampleID)
+        if level == 3:
+            if elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Description':
+                description = elem.text
+                if description == None:
+                    description = ''
+                else:
+                    description = ((str.strip(description)).replace(TAB, '')).replace(CRT, '')
+                    #description = description.replace(TAB, '')
+                    #description = description.replace(CRT, '')
+            elif elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Title':
+                title = elem.text
+                if title == None:
+                    title = ''
+                else:
+                    title = str.strip(title)
+
+            elif elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Type':
+                sType = elem.text
+                if sType == None:
+                    sType = ''
+                else:
+                    sType = str.strip(sType)
+        #if level == 3 and elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Channel-Count':
+            #cCount = elem.text
+        if level == 4:
+            if elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Source':
+                source = elem.text
+                if source != None:
+                    sourceList.append(str.strip(source))
+            elif elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Organism':
+                taxid = elem.get('taxid')
+                if taxid != None:
+                    taxidList.append(str.strip(taxid))
+            elif elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Treatment-Protocol':
+                treatmentProt = elem.text
+                if treatmentProt != None:
+                    treatmentProtList.append(((str.strip(treatmentProt)).replace(TAB, '')).replace(CRT, ''))
+
+            elif elem.tag == elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Molecule':
+                molecule = elem.text
+                if molecule != None:
+                    moleculeList.append(str.strip(molecule))
+            #elif elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Characteristics':
+        
 
 def oldprocess():
     global propertiesDict, expCount, loadedCount, inDbCount, invalidSampleCountDict
@@ -836,20 +916,23 @@ def writeQC():
 
     fpQcFile.write('Number of experiments in the input: %s%s%s' % \
         (expCount, CRT, CRT))
+
     fpQcFile.write('Number of experiments loaded: %s%s%s' % \
         (loadedCount, CRT, CRT))
 
-    fpQcFile.write('GEO Experiment Types Skipped because not in Translation: %s' % (len(expTypesSkippedSet)))
+    fpQcFile.write('Number experiments skipped, already in DB: %s%s%s' %\
+        (len(expIdsInDbSet), CRT, CRT))
+
+    fpQcFile.write('Number experiments skipped, not already in db/type not in translation: %s%s%s' % \
+        (len(expIdSkippedNoTransSet), CRT, CRT))
+
+    fpQcFile.write('Number experiments skipped, not already in db/type not in translation/is SuperSeries: %s%s%s' % \
+        (superSeriesNotInDbCount, CRT, CRT))
+
+    fpQcFile.write('GEO Experiment Types Skipped because not in Translation: %s%s' % (len(expTypesSkippedSet), CRT))
     expTypesSkippedSet = sorted(expTypesSkippedSet)
     for type in expTypesSkippedSet:
         fpQcFile.write('    %s%s' %  (type, CRT))
-
-    fpQcFile.write('%sExperiments already in the database:%s%s' %\
-         (CRT, len(expIdsInDbSet), CRT))
-    expIdsInDbSet = sorted(expIdsInDbSet)
-    for id in expIdsInDbSet:
-        fpQcFile.write ('    %s%s' %  (id, CRT))
-
 
 def oldwriteQC():
     fpQcFile.write('GXD HT Raw Data Load QC%s%s%s' % (CRT, CRT, CRT))
