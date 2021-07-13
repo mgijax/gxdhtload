@@ -37,14 +37,18 @@ LOGDIR=${FILEDIR}/logs
 RPTDIR=${FILEDIR}/reports
 OUTPUTDIR=${FILEDIR}/output
 INPUTDIR=${FILEDIR}/input
+GEO_DOWNLOADS=${DATADOWNLOADS}/eutils.ncbi.nlm.nih.gov.geo
 
 # input/output
-INFILE_NAME=${DATADOWNLOADS}/www.ebi.ac.uk/arrayexpress.json
+QC_RPT=${RPTDIR}/geo_htload_qc.rpt
+EXP_PARSING_RPT=${RPTDIR}/geo_experiment_parsing.rpt
+SAMP_PARSING_RPT=${RPTDIR}/geo_sample_parsing.rpt
 
-QCFILE_NAME=${RPTDIR}/geo_htload_qc.rpt
+# set to true if you want to run the parsing reports
+RUN_PARSING_RPTS=true
 
-export FILEDIR ARCHIVEDIR LOGDIR RPTDIR OUTPUTDIR INPUTDIR INFILE_NAME
-export QCFILE_NAME
+export FILEDIR ARCHIVEDIR LOGDIR RPTDIR OUTPUTDIR INPUTDIR GEO_DOWNLOADS
+export QC_RPT EXP_PARSING_RPT SAMP_PARSING_RPT RUN_PARSING_RPTS
 
 # BCP file names
 EXPERIMENT_FILENAME=GXD_HTExperiment.bcp
@@ -79,9 +83,11 @@ export LOG_FILE LOG_PROC LOG_DIAG LOG_CUR LOG_VAL
 # GEO UID file; we parse this for values to get GEO_XML_FILE
 GEO_UID_FILE=${INPUTDIR}/geo.uid.xml
 
-# GEO XML file
-GEO_DOWNLOADS=${DATADOWNLOADS}/eutils.ncbi.nlm.nih.gov.geo
+# GEO Experiment XML file prefix (GEO_XML_FILE.1, .2 and so on
 GEO_XML_FILE=${GEO_DOWNLOADS}/geo.xml
+
+# GEO Sample file template
+GEO_SAMPLE_TEMPLATE='_family.xml'
 
 # GEO Report file
 GEO_RPT_FILE=${RPTDIR}/geoUpdate.rpt
@@ -89,7 +95,7 @@ GEO_RPT_FILE=${RPTDIR}/geoUpdate.rpt
 # mirror log file
 GEO_LOG_FILE=${LOGDIR}/mirror_geo.log
 
-export GEO_DOWNLOADS GEO_UID_FILE GEO_XML_FILE GEO_RPT_FILE GEO_LOG_FILE
+export GEO_UID_FILE GEO_XML_FILE GEO_SAMPLE_TEMPLATE GEO_RPT_FILE GEO_LOG_FILE
 
 #  Send debug messages to the diagnostic log (true or false)
 LOG_DEBUG=false
