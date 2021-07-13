@@ -95,8 +95,17 @@ geoDownloads = os.environ['GEO_DOWNLOADS']
 sampleTemplate = os.environ['GEO_SAMPLE_TEMPLATE']
 
 # QC file and descriptor
-qcFileName = os.environ['QCFILE_NAME']
+qcFileName = os.environ['QC_RPT']
 fpQcFile = None
+
+# Experiment parsing report
+expParsingFileName = os.environ['EXP_PARSING_RPT']
+fpExpParsingFile = None
+
+# Sample parsing report
+sampParsingFileName  = os.environ['SAMP_PARSING_RPT']
+fpSampParsingFile = None
+runParsingReports = os.environ['RUN_PARSING_RPTS']
 
 #
 # BCP files
@@ -163,6 +172,9 @@ pubMedByExptDict = {}
 # experiment types skipped because not in translation
 expTypesSkippedSet = set()
 
+# experiments skipped because no sample file
+expSkippedNoSampleList = []
+
 # experiments in the database skipped
 expIdsInDbSet = set()
 
@@ -183,9 +195,9 @@ superSeriesNotInDbCount = 0
 # Throws: Nothing
 #
 def initialize():
-    global fpQcFile, fpExperimentBcp, fpAccBcp, fpVariableBcp 
-    global fpPropertyBcp, jFile, nextExptKey, nextAccKey, nextExptVarKey
-    global nextPropKey
+    global fpQcFile, fpExpParsingFile, fpSampParsingFile, fpExperimentBcp 
+    global fpAccBcp, fpVariableBcp, fpPropertyBcp, jFile, nextExptKey
+    global nextAccKey, nextExptVarKey, nextPropKey
 
     # create file descriptors
     try:
@@ -193,6 +205,17 @@ def initialize():
     except:
          print('Cannot create %s' % qcFileName)
 
+    if runParsingReports == 'true':
+        try:
+            fpExpParsingFile = open(expParsingFileName, 'w')
+        except:
+             print('Cannot create %s' % expParsingFileName)
+
+        try:
+            fpSampParsingFile = open(sampParsingFileName, 'w')
+        except:
+             print('Cannot create %s' % sampParsingFileName)
+ 
     try:
         fpExperimentBcp = open(experimentFileName, 'w')
     except:
@@ -371,14 +394,24 @@ def calculateGeoId(primaryID):
 #
 
 def processAll():
-    #print('expID%ssampleList%stitle%ssummary%sisSuperSeries%spdat%sChosen Expt Type%sn_samples%spubmedList%s' % (TAB, TAB, TAB, TAB, TAB, TAB, TAB, TAB, TAB))
-    print ('expID%ssampleID%sdescription%stitle%ssType%ssource%staxid%streatmentProt%smolecule%s' % (TAB, TAB, TAB, TAB, TAB, TAB, TAB, TAB, CRT))
-    first = 1
+    if runParsingReports == 'true':
+        fpExpParsingFile.write('expID%ssampleList%stitle%ssummary%sisSuperSeries%spdat%sChosen Expt Type%sn_samples%spubmedList%s' % (TAB, TAB, TAB, TAB, TAB, TAB, TAB, TAB, CRT))
+        fpSampParsingFile.write('expID%ssampleID%sdescription%stitle%ssType%schannelInfo%s' % (TAB, TAB, TAB, TAB, TAB, CRT))
+    #first = 1
+    #fileCt = 0
     for expFile in str.split(os.environ['EXP_FILES']):
+        #if fileCt != 6:
+        #    fileCt +=1
+        #    print('fileCt is not 6: %s' % fileCt)
+        #    continue
+        #print(CRT)
         #print(expFile)
-        if first == 1:
-            process(expFile)
-            first = 0
+   
+        #if first == 1:
+        process(expFile)
+        #fileCt +=1
+        #print('fileCt is 6: %s' % fileCt)
+        #   first = 0
     return
 
 #
@@ -394,8 +427,10 @@ def process(expFile):
     global invalidReleaseDateDict, invalidUpdateDateDict, noIdList
     global nextExptKey, nextAccKey, nextExptVarKey, nextPropKey, superSeriesNotInDbCount
     global updateExptCount, expTypesSkippedSet, expIdsInDbSet, expIdSkippedNoTransSet
+    global expSkippedNoSampleList
 
-    context = ET.iterparse(expFile, events=("start","end"))
+    f = open(expFile, encoding='utf-8', errors='replace')   
+    context = ET.iterparse(f, events=("start","end"))
     context = iter(context)
     
     level = 0
@@ -449,10 +484,16 @@ def process(expFile):
             if exptTypeKey != 0 and isSuperSeries == 'no' and inDb == 0:
                 # print the row for testing purposes
                 loadedCount += 1
-                #print ('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (expID, TAB, ', '.join(sampleList), TAB, title, TAB, summary, TAB, isSuperSeries, TAB, pdat, TAB, exptType, TAB, n_samples, TAB, ', '.join(pubmedList)) )
 
                 # now process the samples
-                processSamples(expID, n_samples)
+                rc =  processSamples(expID, n_samples)
+                if rc == 1:
+                    expSkippedNoSampleList.append('expID: %s reason: Missing Sample File' % (expID))
+                elif rc == 2:
+                    expSkippedNoSampleList.append('expID: %s reason: Error Parsing Sample File' % (expID))
+                else:
+                    if runParsingReports == 'true':
+                       fpExpParsingFile.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (expID, TAB, ', '.join(sampleList), TAB, title, TAB, summary, TAB, isSuperSeries, TAB, pdat, TAB, exptType, TAB, n_samples, TAB, ', '.join(pubmedList), CRT) )
             else:
                  expTypesSkippedSet.update(typeList)
             title = ''
@@ -497,11 +538,16 @@ def process(expFile):
     elem.clear()
 
 def processSamples(expID, n_samples):
-    #print('%sexpID: ' % (CRT, expID))
+    #print('expID: %s' % (expID))
     sampleFile = '%s%s' % (expID, sampleTemplate)
-    #print('%s/%s' % (geoDownloads, sampleFile))
     samplePath = '%s/%s' % (geoDownloads, sampleFile)
-    context = ET.iterparse(samplePath, events=("start","end"))
+    #print(samplePath)
+    # check that sample file exists
+    if not os.path.exists(samplePath):
+        print('sample file does not exist: %s' % samplePath)
+        return 1
+    f = open(samplePath, encoding='utf-8', errors='replace')
+    context = ET.iterparse(f, events=("start","end"))
     context = iter(context)
 
     level = 0
@@ -509,84 +555,129 @@ def processSamples(expID, n_samples):
     description = ''
     title = ''
     sType = ''
+    molecule = ''
+    taxid = ''
+    taxidValue = ''
+    treatmentProt = ''
+    channelDict = ''
+    channelList = ''
+    # dictionary of key/values for the Channel section
+    channelDict = {}
 
-    # The attributes within a Channel Tag
-    sourceList = []
-    taxidList = []
-    treatmentProtList = []
-    moleculeList = []
+    # There can be 1 or 2 channels (not yet sure if there can be zero
+    # first dict in list is channel 1, second is channel 2 (if there is one)
+    channelList = []
 
-    # Channel-Count, there can be 1 or 2, need for sequence of sets of source/taxid/treatment/molecule
-    #cCount = 0 
+    # Channel, there can be 1 or 2, need for sequence of sets of source/taxid/treatment/molecule
+    cCount = 0 
+    try:
+        for event, elem in context:
+            if event == 'start':
+                level += 1
+            if event == 'end':
+                level -= 1
+            # we are done processing a sample, print and reset
+            if event == 'end' and elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Sample':
+                # if the dict is not empty, add it to the list
+                if channelDict:
+                    #print(channelDict)
+                    #print('set second channel in channelList')
+                    channelList.append(channelDict)
 
-    for event, elem in context:
-        if event == 'start':
-            level += 1
-        if event == 'end':
-            level -= 1
-        if event == 'end' and elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Sample':
-            print ('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (expID, TAB, sampleID, TAB, description, TAB, title, TAB, sType, TAB, ', '.join(sourceList), TAB,  ', '.join(taxidList), TAB,  ', '.join(treatmentProtList), TAB,  ', '.join(moleculeList)))
-            # we are at the end of a sample, reset
-            sampleID = ''
-            description =  ''
-            title = ''
-            sType = ''
-            sourceList = []
-            taxidList = []
-            treatmentProtList = []
-            moleculeList = []
-        #if event == 'end':
-        #    print('level: %s' % level)
-        #    print('event: %s' % event)
-        #    print('elem.tag/text: %s %s' % (elem.tag, elem.text))
-        #    print('elem.attrib: %s' % elem.attrib)
-        if level == 2 and elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Sample':
-                sampleID = str.strip(elem.get('iid'))
-                #print('sampleID: %s' % sampleID)
-        if level == 3:
-            if elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Description':
-                description = elem.text
-                if description == None:
-                    description = ''
-                else:
-                    description = ((str.strip(description)).replace(TAB, '')).replace(CRT, '')
-                    #description = description.replace(TAB, '')
-                    #description = description.replace(CRT, '')
-            elif elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Title':
-                title = elem.text
-                if title == None:
-                    title = ''
-                else:
-                    title = str.strip(title)
+                channelString = processChannels(channelList)
+                fpSampParsingFile.write('%s%s%s%s%s%s%s%s%s%s%s%s' % (expID, TAB, sampleID, TAB, description, TAB, title, TAB, sType, TAB, channelString, CRT))
+                # reset
+                sampleID = ''
+                description =  ''
+                title = ''
+                sType = ''
+                molecule = ''
+                taxid = ''
+                taxidValue = ''
+                treatmentProt = ''
+                channelDict = {}
+                channelList = []
 
-            elif elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Type':
-                sType = elem.text
-                if sType == None:
-                    sType = ''
-                else:
-                    sType = str.strip(sType)
-        #if level == 3 and elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Channel-Count':
-            #cCount = elem.text
-        if level == 4:
-            if elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Source':
-                source = elem.text
-                if source != None:
-                    sourceList.append(str.strip(source))
-            elif elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Organism':
-                taxid = elem.get('taxid')
-                if taxid != None:
-                    taxidList.append(str.strip(taxid))
-            elif elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Treatment-Protocol':
-                treatmentProt = elem.text
-                if treatmentProt != None:
-                    treatmentProtList.append(((str.strip(treatmentProt)).replace(TAB, '')).replace(CRT, ''))
+            if level == 2 and elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Sample':
+                    sampleID = str.strip(elem.get('iid'))
+            if level == 3:
+                if elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Description':
+                    description = elem.text
+                    if description == None:
+                        description = ''
+                    else:
+                        description = ((str.strip(description)).replace(TAB, '')).replace(CRT, '')
+                elif elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Title':
+                    title = elem.text
+                    if title == None:
+                        title = ''
+                    else:
+                        title = str.strip(title)
+                elif elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Type':
+                    sType = elem.text
+                    if sType == None:
+                        sType = ''
+                    else:
+                        sType = str.strip(sType)
+                elif elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Channel':
+                    #print('sId: %s tag: %s text: %s attrib: %s' % (sampleID, elem.tag, elem.text, elem.get('position')))
+                    cCount = int(elem.get('position'))
+                    # if we have a second channel, append the first to the List and reset the dict
+                    if cCount == 2:
+                        channelList.append(channelDict)
+                        #print('set first channel in channelList')
+                        channelDict = {}
+                elif elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Characteristics':
+                    tag = elem.get('tag')
+                    if tag == None: # not an attrib just get the text
+                        tag = 'Characteristics' # name it
+                    tag = str.strip(tag)   # strip it, might be attrib
+                    value = str.strip(elem.text) # get the value
+                    #print('expID: %s sampleID: %s tag: %s value: %s' % (expID, sampleID, tag, value))
+                    if value != None and value != '':
+                        channelDict[tag] = value
+            
+            if level == 4:
+                if elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Source':
+                    source = elem.text
+                    if source != None:
+                        channelDict['source'] = str.strip(source)
+                elif elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Organism':
+                    taxid = elem.get('taxid')
+                    if taxid != None:
+                        channelDict['taxid'] = str.strip(taxid)
+                    taxidValue = elem.text
+                    if taxidValue != None:
+                        channelDict['taxidValue'] = str.strip(taxidValue)
 
-            elif elem.tag == elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Molecule':
-                molecule = elem.text
-                if molecule != None:
-                    moleculeList.append(str.strip(molecule))
-            #elif elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Characteristics':
-        
+                elif elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Treatment-Protocol':
+                    treatmentProt = elem.text
+                    if treatmentProt != None:
+                        channelDict['treatmentProt'] = ((str.strip(treatmentProt)).replace(TAB, '')).replace(CRT, '')
+                elif elem.tag == elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Molecule':
+                    molecule = elem.text
+                    if molecule != None:
+                        channelDict['molecule'] = str.strip(molecule)
+    except:
+        return 2
+
+    return 0 
+def processChannels(channelList):
+    # no channels in this sample, return empty string
+    if not channelList:
+        return ''
+    if len(channelList) == 1:
+        return processOneChannel(channelList[0])
+    else:
+        string1 = processOneChannel(channelList[0])
+        string2 = processOneChannel(channelList[1])
+        return '%s|||%s' % (string1, string2)
+
+def processOneChannel(channelDict):
+    keyValueList = []
+    for key in channelDict:
+        keyValueList.append('%s:%s' % (key, channelDict[key]))
+    return ', '.join(keyValueList)
 
 def oldprocess():
     global propertiesDict, expCount, loadedCount, inDbCount, invalidSampleCountDict
@@ -923,13 +1014,17 @@ def writeQC():
     fpQcFile.write('Number experiments skipped, already in DB: %s%s%s' %\
         (len(expIdsInDbSet), CRT, CRT))
 
-    fpQcFile.write('Number experiments skipped, not already in db/type not in translation: %s%s%s' % \
+    fpQcFile.write('Number experiments skipped, not already in db. Type not in translation: %s%s%s' % \
         (len(expIdSkippedNoTransSet), CRT, CRT))
 
     fpQcFile.write('Number experiments skipped, not already in db/type not in translation/is SuperSeries: %s%s%s' % \
         (superSeriesNotInDbCount, CRT, CRT))
 
-    fpQcFile.write('GEO Experiment Types Skipped because not in Translation: %s%s' % (len(expTypesSkippedSet), CRT))
+    fpQcFile.write('Number experiments skipped because of Sample file issues: %s%s' % (len(expSkippedNoSampleList), CRT))
+    for e in expSkippedNoSampleList:
+        fpQcFile.write('    %s%s' %  (e, CRT))   
+
+    fpQcFile.write('%sGEO Experiment Types Skipped because not in Translation: %s%s' % (CRT, len(expTypesSkippedSet), CRT))
     expTypesSkippedSet = sorted(expTypesSkippedSet)
     for type in expTypesSkippedSet:
         fpQcFile.write('    %s%s' %  (type, CRT))
@@ -1004,6 +1099,8 @@ def oldwriteQC():
 def closeFiles():
 
     fpQcFile.close()
+    fpExpParsingFile.close()
+    fpSampParsingFile.close()
     fpExperimentBcp.close()
     fpAccBcp.close()
     fpVariableBcp.close()
