@@ -140,6 +140,9 @@ loadedCount = 0
 # Number of experiments in the db whose pubmed IDs were updated
 updateExptCount = 0
 
+# count of experiments skipped because of 'Third-party reanalysis'
+tprSet = set()
+
 # cache of IDs and counts in the input
 # idDict = {primaryID:count, ...}
 idDict = {}
@@ -169,23 +172,29 @@ exptTypeTransDict = {}
 # {AE ID: [pubmedId1, ..., pubmedIdn], ...}
 pubMedByExptDict = {}
 
+# experiment ids in the database skipped, primary skip
+expIdsInDbSet = set()
+
 # experiment types skipped because not in translation
 expTypesSkippedSet = set()
+
+# experiment ids not in database, type not translated, secondary skip
+expSkippedNotInDbNoTransSet = set()
 
 # experiments skipped because no sample file
 expSkippedNoSampleList = []
 
-# experiments in the database skipped
-expIdsInDbSet = set()
-
-# experiment ids skipped because expt type not in translatioin
-expIdSkippedNoTransSet = set()
-
 # all experiment ids 
 allExptIdList = []
 
-# superseries in input that are not already in the database
-superSeriesNotInDbCount = 0
+# skipped experiment ids keyed by reason
+
+# experiment ids not in database, in translation. Is superseries
+expSkippedNotInDbTransIsSuperseriesSet = set()
+
+# global value  for sample Overall-Design value which is prepended
+# to the experiment summary for the full experiment description
+overallDesign = ''
 
 #
 # Purpose:  Open file descriptors, get next primary keys, create lookups
@@ -395,22 +404,22 @@ def calculateGeoId(primaryID):
 
 def processAll():
     if runParsingReports == 'true':
-        fpExpParsingFile.write('expID%ssampleList%stitle%ssummary%sisSuperSeries%spdat%sChosen Expt Type%sn_samples%spubmedList%s' % (TAB, TAB, TAB, TAB, TAB, TAB, TAB, TAB, CRT))
+        fpExpParsingFile.write('expID%ssampleList%stitle%ssummary+overall-design%sisSuperSeries%spdat%sChosen Expt Type%sn_samples%spubmedList%s' % (TAB, TAB, TAB, TAB, TAB, TAB, TAB, TAB, CRT))
         fpSampParsingFile.write('expID%ssampleID%sdescription%stitle%ssType%schannelInfo%s' % (TAB, TAB, TAB, TAB, TAB, CRT))
     #first = 1
-    #fileCt = 0
+    fileCt = 0
     for expFile in str.split(os.environ['EXP_FILES']):
-        #if fileCt != 6:
-        #    fileCt +=1
-        #    print('fileCt is not 6: %s' % fileCt)
-        #    continue
+        if fileCt != 6:
+            #print('fileCt is not 6: %s' % fileCt)
+            fileCt +=1
+            continue
         #print(CRT)
         #print(expFile)
    
         #if first == 1:
         process(expFile)
-        #fileCt +=1
         #print('fileCt is 6: %s' % fileCt)
+        fileCt +=1
         #   first = 0
     return
 
@@ -425,9 +434,10 @@ def processAll():
 def process(expFile):
     global propertiesDict, expCount, loadedCount, invalidSampleCountDict
     global invalidReleaseDateDict, invalidUpdateDateDict, noIdList
-    global nextExptKey, nextAccKey, nextExptVarKey, nextPropKey, superSeriesNotInDbCount
-    global updateExptCount, expTypesSkippedSet, expIdsInDbSet, expIdSkippedNoTransSet
-    global expSkippedNoSampleList
+    global nextExptKey, nextAccKey, nextExptVarKey, nextPropKey, expSkippedNotInDbTransIsSuperseriesSet
+    global updateExptCount, expTypesSkippedSet, expIdsInDbSet
+    global expSkippedNoSampleList, expSkippedNotInDbNoTransSet
+    global overallDesign, tprSet
 
     f = open(expFile, encoding='utf-8', errors='replace')   
     context = ET.iterparse(f, events=("start","end"))
@@ -437,51 +447,64 @@ def process(expFile):
     expID = ''
     title = ''
     summary = ''
-    isSuperSeries = 'no'
     pdat = ''
     gdsType = ''
     exptType = ''
     n_samples = ''
     pubmedList = []
     sampleList = [] # list of samplIDs
-    exptTypeKey = 0
-    inDb = 0
+
+    isSuperSeries = 'no'   # flag to indicate expt is superseries, skip
+    exptTypeKey = 0        # if 0 chosen gdstype did not translate, skip
+    isTpr = 0
     for event, elem in context:
         # start of a record - reset everything
         if event=='end' and elem.tag == 'DocumentSummary':
             expCount += 1
+            skip = 0
+            print('expID: %s' % expID)
             allExptIdList.append(expID)
-            # pick first valid experiment type and translate it
-            typeList = list(map(str.strip, gdsType.split(';')))
 
-            for exptType in typeList:
-                if exptType in exptTypeTransDict:
-                    exptTypeKey= exptTypeTransDict[exptType]
-                    break
             if expID in primaryIdDict:
-                inDb = 1
+                skip = 1
                 expIdsInDbSet.add(expID)
-            elif exptTypeKey == 0:
-                # experiments whose type does not translate and is not already in the db
-                expIdSkippedNoTransSet.add(expID)
-            else:
+                print('    expIdInDb skip')
+
+            typeList = list(map(str.strip, gdsType.split(';')))
+            if skip != 1 and 'Third-party reanalysis' in typeList:
+                    tprSet.add(expID)
+                    print("ExpID: %s is 'Third-party reanalysis'" % expID)
+                    print('TypeList: %s' % typeList)
+                    skip = 1
+                    print('    tprSet.add skip')
+
+            if skip != 1:
+                # pick first valid experiment type and translate it
+                found = 0               
+                for exptType in typeList:
+                    if exptType not in exptTypeTransDict:
+                        expTypesSkippedSet.add(exptType)
+                    # we take the FIRST translatable expt type in the list
+                    # but we want to iterate through all types to get all
+                    # that do not translate i.e. don't use i'break'
+                    elif exptType in exptTypeTransDict and found == 0:
+                        exptTypeKey= exptTypeTransDict[exptType]
+                        found = 1
+                if exptTypeKey == 0:
+                    # expts whose type doesn't translate and is not already in the db
+                    expSkippedNotInDbNoTransSet.add(expID)
+                    skip = 1
+                    print('    expIdNotInDbNoTrans skip')
+
+            # for some reason and elif does not work here. Weird.
+            if skip != 1 and isSuperSeries == 'yes':
                 # number of superseries not already caught because of un translated
                 # exptType or already in DB
-                if isSuperSeries == 'yes' and exptTypeKey != 0:
-                    superSeriesNotInDbCount +=1
-            # #print out the last record for debug
-            # print('expID: %s' % expID)
-            # print('isSuperSeries: %s' % isSuperSeries)
-            # print('title: %s' % (title))
-            # print('summary: %s' % summary)
-            # print('gdsType: %s' % gdsType)
-            # print('exptType: %s key: %s' % (exptType, exptTypeKey))
-            # print('pdat: %s' % pdat)
-            # print('n_samples: %s' % n_samples)
-            # print('sampleList: %s' % sampleList)
-            # print('pubmedList: %s' % pubmedList)
-            #print('exptTypeKey: %s isSuperSeries: %s inDb: %s' % (exptTypeKey, isSuperSeries, inDb))
-            if exptTypeKey != 0 and isSuperSeries == 'no' and inDb == 0:
+                expSkippedNotInDbTransIsSuperseriesSet.add(expID)
+                skip = 1
+
+            print('exptTypeKey: %s isSuperSeries: %s skip: %s' % (exptTypeKey, isSuperSeries, skip))
+            if  skip != 1: 
                 # print the row for testing purposes
                 loadedCount += 1
 
@@ -489,13 +512,20 @@ def process(expFile):
                 rc =  processSamples(expID, n_samples)
                 if rc == 1:
                     expSkippedNoSampleList.append('expID: %s reason: Missing Sample File' % (expID))
+                    loadedCount -= 1  # decrement the loaded count
                 elif rc == 2:
                     expSkippedNoSampleList.append('expID: %s reason: Error Parsing Sample File' % (expID))
+                    loadedCount -= 1 # decrement the loaded count
                 else:
+                    print('overallDesign: %s' % overallDesign)
+                    # catenate the global overallDesign parsed from the sample to the
+                    # experiment summary
+                    description = '%s %s' % (summary, overallDesign)
+                    print('description: %s' % description)
+
                     if runParsingReports == 'true':
-                       fpExpParsingFile.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (expID, TAB, ', '.join(sampleList), TAB, title, TAB, summary, TAB, isSuperSeries, TAB, pdat, TAB, exptType, TAB, n_samples, TAB, ', '.join(pubmedList), CRT) )
-            else:
-                 expTypesSkippedSet.update(typeList)
+                       fpExpParsingFile.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (expID, TAB, ', '.join(sampleList), TAB, title, TAB, description, TAB, isSuperSeries, TAB, pdat, TAB, exptType, TAB, n_samples, TAB, ', '.join(pubmedList), CRT) )
+            
             title = ''
             summary = ''
             isSuperSeries = 'no'
@@ -505,7 +535,6 @@ def process(expFile):
             pubmedList = []
             sampleList = []
             exptTypeKey = 0
-            inDb = 0
         
         if level == 4 : 
             # Accession tag at level 4 tells us we have a new record
@@ -517,6 +546,7 @@ def process(expFile):
                 summary = elem.text
                 if summary.find(SUPERSERIES) != -1:
                     isSuperSeries =  'yes'
+                    #print('isSuperSeries: %s' % expID)
             elif elem.tag == 'PDAT':
                 pdat = elem.text
             elif elem.tag == 'gdsType':
@@ -538,6 +568,8 @@ def process(expFile):
     elem.clear()
 
 def processSamples(expID, n_samples):
+    global overallDesign
+
     #print('expID: %s' % (expID))
     sampleFile = '%s%s' % (expID, sampleTemplate)
     samplePath = '%s/%s' % (geoDownloads, sampleFile)
@@ -559,6 +591,7 @@ def processSamples(expID, n_samples):
     taxid = ''
     taxidValue = ''
     treatmentProt = ''
+    overallDesign = ''
     channelDict = ''
     channelList = ''
     # dictionary of key/values for the Channel section
@@ -595,11 +628,18 @@ def processSamples(expID, n_samples):
                 taxid = ''
                 taxidValue = ''
                 treatmentProt = ''
+                overallDesign = ''
                 channelDict = {}
                 channelList = []
 
-            if level == 2 and elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Sample':
+            if level == 2:
+                if elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Sample':
                     sampleID = str.strip(elem.get('iid'))
+                elif elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Overall-Design':
+                    if overallDesign == None:
+                        overallDesign = ''
+                    else:
+                        overallDesign = str.strip(elem.text)
             if level == 3:
                 if elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Description':
                     description = elem.text
@@ -679,327 +719,6 @@ def processOneChannel(channelDict):
         keyValueList.append('%s:%s' % (key, channelDict[key]))
     return ', '.join(keyValueList)
 
-def oldprocess():
-    global propertiesDict, expCount, loadedCount, inDbCount, invalidSampleCountDict
-    global invalidReleaseDateDict, invalidUpdateDateDict, noIdList
-    global nextExptKey, nextAccKey, nextExptVarKey, nextPropKey
-    global updateExptCount
-
-    for f in jFile['experiments']['experiment']:
-        expCount += 1
-        # definitions with SUPERSERIES text get different evaluation state 
-        # than the load default and evalution date and evaluated by are set 
-        # by the load (default null)
-        isSuperSeries = 0
-        evalStateToUseKey = defaultEvalStateTermKey
-
-        try:
-            # description is str.or list
-            allDescription =  f['description']
-            description = allDescription['text'] # experiment, onea
-            
-            # US108 'clean up URLs that appear in description field'. All
-            # URLs that need to be cleaned up are the listType description
-            # example of element in a description list with URL that we 
-            # need to parse:
-            # {'a': {'href': 'http://lgsun.grc.nia.nih.gov/ANOVA/', 'target': '_blank', '$': 'http://lgsun.grc.nia.nih.gov/ANOVA/'}}
-            if type(description) ==  list:
-                listDescript = ''
-                for d in description:
-                    if type(d) == dict: 
-                        if 'a' in d:
-                            url = d['a']['$']
-                            listDescript = listDescript + url
-                        # skip these: {"br":null}
-                        elif 'br' in d:
-                            continue
-                    else:
-                        listDescript = listDescript + str(d)
-                description = listDescript
-        except:
-            description = ''
-        if description == None: #  {'text': None, 'id': None}
-            description = ''
-        
-        description = str.strip(description)
-
-        if description.find(SUPERSERIES) != -1:
-            evalStateToUseKey = altEvalStateTermKey
-            isSuperSeries = 1
-
-        try:
-            name = f['name'] 
-            if type(name) == list:
-                name = '|'.join(name)
-        except:
-            name = ''
-        name = str.strip(name)
-
-        try:
-            primaryID = str.strip(f['accession']) # accession
-        except:
-            primaryID = ''
-        
-        try:
-            sampleCount = f['samples'] # property, one
-        except:
-            sampleCount = ''
-
-        try:
-            releasedate = f['releasedate'] # experiment, one
-        except:
-            releasedate = ''
-
-        try:
-            # experimentalfactor.name
-            # list or dict
-            expFactor = f['experimentalfactor']
-            if type(expFactor) == dict:
-                expFactorList = [expFactor]
-            else:
-                expFactorList = expFactor
-            expFactorSet = set()
-            for e in expFactorList :  #property, many stored individ. 
-                                      # weed out dups
-                expFactorSet.add(e['name'])
-            expFactorList = list(expFactorSet)
-        except:
-            expFactorList = []
-
-        try:
-            lastupdatedate = f['lastupdatedate'] # experiment, one
-        except:
-            lastupdatedate = ''
-
-        try:
-            # provider.contact, dictionary or list of dictionaries; need 
-            # to remove exact dups
-            providerList = []
-            if type(f['provider']) != list:
-                providerList = [f['provider']['contact']]
-            else:
-                for p in f['provider']:
-                     if p['contact'] != None:
-                         providerList.append(p['contact'])
-            providerSet = set(providerList)
-            providerList = list(providerSet)
-        except:
-            providerList = []
-
-        try:
-            # experimenttype is str.or list, property, 
-            # many stored individ
-            if type( f['experimenttype']) != list:
-                experimenttypeList = [ f['experimenttype']]
-            else:
-                experimenttypeList =  f['experimenttype']
-        except:
-            experimenttypeList = []
-
-        # pick first valid experiment type and translate it to populate the
-        # exptype key
-        exptTypeKey = 0
-        for exp in experimenttypeList:
-            if exp in exptTypeTransDict:
-                exptTypeKey= exptTypeTransDict[exp]
-                break
-        if exptTypeKey == 0:
-             exptTypeKey = exptTypeNRKey # Not Resolved
-
-        try:
-        # PubMed IDs - bibliography.accession
-        # TR13116/check for duplicate pubmedids
-            bibliographyList = []
-            if type(f['bibliography']) == dict: # dictionary
-                 if str(f['bibliography']['accession']) not in bibliographyList:
-                        bibliographyList.append(str(f['bibliography']['accession']))
-            else: # ListType
-                for b in f['bibliography']: # for each dict in the list
-                    if 'accession' in b:
-                        if str(b['accession']) not in bibliographyList:
-                                bibliographyList.append(str(b['accession']))
-        except:
-            bibliographyList = []
-
-        # the template for properties:
-        propertyTemplate = "#====#%s%s%s#=#%s%s%s%s%s#==#%s#===#%s%s%s%s%s%s%s%s%s" % (TAB, propTypeKey, TAB, TAB, nextExptKey, TAB, mgiTypeKey, TAB, TAB, TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT )
-        propertyUpdateTemplate = "#====#%s%s%s#=#%s#=====#%s%s%s#==#%s#===#%s%s%s%s%s%s%s%s%s" % (TAB, propTypeKey, TAB, TAB, TAB, mgiTypeKey, TAB, TAB, TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT )
-        # 
-        # update pubmed ID properties, if this ID already in the database
-        #
-        if primaryID in primaryIdDict:
-            inDbCount += 1
-
-            # not all experiments have pubmed IDs
-            if primaryID in pubMedByExptDict:
-                # get the list of pubmed Ids for this expt in the database
-                dbBibList = pubMedByExptDict[primaryID]
-
-                # get the set of incoming pubmed IDs not in the database
-                newSet = set(bibliographyList).difference(set(dbBibList))
-
-                # if we have new pubmed IDs, add them to the database
-                if newSet:
-                    updateExpKey = primaryIdDict[primaryID]
-
-                    # get next sequenceNum for this expt's pubmed ID 
-                    # in the database
-                    results = db.sql('''select max(sequenceNum) + 1 
-                        as nextNum
-                        from MGI_Property p
-                        where p._Object_key =  %s
-                        and p._PropertyTerm_key = 20475430
-                        and p._PropertyType_key = 1002''' % updateExpKey, 'auto')
-
-                    nextSeqNum = results[0]['nextNum']
-                    if newSet:
-                        updateExptCount += 1
-                    for b in newSet:
-                        toLoad = propertyUpdateTemplate.replace('#=#', str(pubmedPropKey)).replace('#==#', str(b)).replace('#===#', str(nextSeqNum)).replace('#====#', str(nextPropKey)).replace('#=====#', str(updateExpKey))
-                        fpPropertyBcp.write(toLoad)
-                        nextPropKey += 1
-            # continue so we don't dup what is in the db
-            continue
-        prefixPartPrimary, numericPartPrimary = accessionlib.split_accnum(primaryID)
-        #
-        # Do QC checks
-        # If there are errors, skip to the next experiment
-        if doQcChecks(primaryID, name, sampleCount, releasedate, lastupdatedate):
-            continue
-
-        # calculate secondary GEO ID for AE GEO IDs
-        geoID = calculateGeoId(primaryID)
-
-        # 
-        # now write out to bcp files
-        #
-        loadedCount += 1
-
-        # GXD_Experiment 
-        # many optional nulls - create the insert string
-        line = '%s%s%s%s' % (nextExptKey, TAB, sourceKey, TAB)
-        if name != '':
-            line = line + name + TAB
-
-        if description  != '' and description != None:
-            line = line + description + TAB
-        else:
-            line = line + TAB
-
-        if releasedate != '':
-            line = line + releasedate + TAB
-        else:
-             line = line + TAB
-
-        if lastupdatedate != '':
-            line = line + lastupdatedate + TAB
-        else: 
-            line = line + TAB
-
-        # evaluated data is today
-        if isSuperSeries:
-            line = line + loadDate + TAB
-        else:
-            # evaluated_date is null
-            line = line + TAB
-
-        line = line + str(evalStateToUseKey) + TAB
-
-        if isSuperSeries:
-             line = line + str(altCurStateTermKey) + TAB
-        else:
-            line = line + str(curStateTermKey) + TAB
-
-        line = line + str(studyTypeTermKey) + TAB
-        line = line + str(exptTypeKey) + TAB
-
-        # evalByKey  is null unless isSuperSeries is true then 
-        # it is load user
-        if isSuperSeries:
-            line = line + str(userKey) + TAB
-        else:
-            line = line + TAB
-
-        # initialCurByKey, lastCurByKey, initialCurDate, lastCurDate 
-        # all null
-        line = line + TAB + TAB + TAB + TAB
-
-        # created and modified by
-        line = line + str(userKey) + TAB + str(userKey) + TAB
-
-        # creation and modification date
-        line = line + loadDate + TAB + loadDate + CRT
-
-        fpExperimentBcp.write(line)
-
-        # Primary Accession 
-        fpAccBcp.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextAccKey, TAB, primaryID, TAB, prefixPartPrimary, TAB, numericPartPrimary, TAB, aeLdbKey, TAB, nextExptKey, TAB, mgiTypeKey, TAB, private, TAB, isPreferred, TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT ))
-        nextAccKey += 1
-
-        # Secondary Accession 
-        if geoID != '':
-            prefixPartSecondary, numericPartSecondary = accessionlib.split_accnum(geoID)
-            fpAccBcp.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextAccKey, TAB, geoID, TAB, prefixPartSecondary, TAB, numericPartSecondary, TAB, geoLdbKey, TAB, nextExptKey, TAB, mgiTypeKey, TAB, private, TAB, notPreferred, TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT ))
-            nextAccKey += 1
-
-        # Variable
-        fpVariableBcp.write('%s%s%s%s%s%s' % (nextExptVarKey, TAB, nextExptKey, TAB, exptVariableTermKey, CRT))
-        nextExptVarKey += 1
-
-        #
-        # Properties 
-        #
-        
-        # name (0,1, pipe-delim) 
-        # sampleCount (0,1) 
-        # expFactorList (0-n)
-        # providerList (0-n)
-        # experimenttypeList (0-n)
-        # bibiliographyList (0-n)
-        #
-        # propName, value and sequenceNum to be filled in later
-        if name != '':
-            toLoad = propertyTemplate.replace('#=#', str(namePropKey)).replace('#==#', name).replace('#===#', '1').replace('#====#', str(nextPropKey))
-            fpPropertyBcp.write(toLoad)
-            nextPropKey += 1
-
-        if sampleCount != '':
-            toLoad = propertyTemplate.replace('#=#', str(sampleCountPropKey)).replace('#==#', str(sampleCount)).replace('#===#', '1').replace('#====#', str(nextPropKey))
-            fpPropertyBcp.write(toLoad)
-            nextPropKey += 1
-
-        seqNumCt = 1
-        for e in expFactorList:
-            toLoad = propertyTemplate.replace('#=#', str(expFactorPropKey)).replace('#==#', e).replace('#===#', str(seqNumCt)).replace('#====#', str(nextPropKey))
-            fpPropertyBcp.write(toLoad)
-            seqNumCt += 1
-            nextPropKey += 1
-
-        seqNumCt = 1
-        for p in providerList:
-            toLoad = propertyTemplate.replace('#=#', str(contactNamePropKey)).replace('#==#', p).replace('#===#', str(seqNumCt)).replace('#====#', str(nextPropKey))
-            fpPropertyBcp.write(toLoad)
-            seqNumCt += 1
-            nextPropKey += 1
-
-        seqNumCt = 1
-        for e in experimenttypeList:
-            toLoad = propertyTemplate.replace('#=#', str(expTypePropKey)).replace('#==#', e).replace('#===#', str(seqNumCt)).replace('#====#', str(nextPropKey))
-            fpPropertyBcp.write(toLoad)
-            seqNumCt += 1
-            nextPropKey += 1
-
-        seqNumCt = 1
-        for b in bibliographyList:
-            toLoad = propertyTemplate.replace('#=#', str(pubmedPropKey)).replace('#==#', str(b)).replace('#===#', str(seqNumCt)).replace('#====#', str(nextPropKey))
-            fpPropertyBcp.write(toLoad)
-            seqNumCt += 1
-            nextPropKey += 1
-
-        nextExptKey += 1
-
-    return
-
 def writeQC():
     global expTypesSkippedSet, expIdsInDbSet
 
@@ -1013,81 +732,32 @@ def writeQC():
 
     fpQcFile.write('Number experiments skipped, already in DB: %s%s%s' %\
         (len(expIdsInDbSet), CRT, CRT))
+    for id in  expIdsInDbSet:
+        fpQcFile.write('    %s%s' %  (id, CRT))
 
-    fpQcFile.write('Number experiments skipped, not already in db. Type not in translation: %s%s%s' % \
-        (len(expIdSkippedNoTransSet), CRT, CRT))
+    fpQcFile.write('Number experiments skipped, not already in db. Is Third-party reanalysis: %s%s' % \
+        (len(tprSet),  CRT))
+    for id in  tprSet:
+        fpQcFile.write('    %s%s' %  (id, CRT))
+       
+    fpQcFile.write('Number experiments skipped, not already in db, not Third-party reanalysis. Type not in translation: %s%s%s' % \
+        (len(expSkippedNotInDbNoTransSet), CRT, CRT))
+    for id in  expSkippedNotInDbNoTransSet:
+        fpQcFile.write('    %s%s' %  (id, CRT))
 
-    fpQcFile.write('Number experiments skipped, not already in db/type not in translation/is SuperSeries: %s%s%s' % \
-        (superSeriesNotInDbCount, CRT, CRT))
+    fpQcFile.write('Number experiments skipped, not already in db, not Third-party reanalysis, type not in translation. Is SuperSeries: %s%s%s' % \
+        (len(expSkippedNotInDbTransIsSuperseriesSet), CRT, CRT))
+    for id in  expSkippedNotInDbTransIsSuperseriesSet:
+        fpQcFile.write('    %s%s' %  (id, CRT))
 
     fpQcFile.write('Number experiments skipped because of Sample file issues: %s%s' % (len(expSkippedNoSampleList), CRT))
     for e in expSkippedNoSampleList:
         fpQcFile.write('    %s%s' %  (e, CRT))   
 
-    fpQcFile.write('%sGEO Experiment Types Skipped because not in Translation: %s%s' % (CRT, len(expTypesSkippedSet), CRT))
+    fpQcFile.write('%sSet of unique GEO Experiment Types not found in Translation: %s%s' % (CRT, len(expTypesSkippedSet), CRT))
     expTypesSkippedSet = sorted(expTypesSkippedSet)
     for type in expTypesSkippedSet:
         fpQcFile.write('    %s%s' %  (type, CRT))
-
-def oldwriteQC():
-    fpQcFile.write('GXD HT Raw Data Load QC%s%s%s' % (CRT, CRT, CRT))
-
-    fpQcFile.write('Number of experiments in the input: %s%s' % \
-        (expCount, CRT))
-    fpQcFile.write('Number of experiments already in the database: %s%s' %\
-         (inDbCount, CRT))
-    fpQcFile.write('Number of experiments loaded: %s%s' % \
-        (loadedCount, CRT))
-    fpQcFile.write('Number of experiments with updated PubMed IDs: %s%s%s'\
-         % (updateExptCount, CRT, CRT))
-
-
-    fpQcFile.write('Experiments with no Primary ID%s' % CRT)
-    fpQcFile.write('--------------------------------------------------%s' % CRT)
-    ct = 0
-    for name in noIdList:
-        ct += 1
-        fpQcFile.write('%s%s' %  (name, CRT))
-    fpQcFile.write('%sTotal: %s%s%s' % (CRT, ct, CRT, CRT))
-
-    fpQcFile.write('Multiple Experiments with same AE ID%s' % CRT)
-    fpQcFile.write('ID%sCount%s' % (TAB, CRT))
-    fpQcFile.write('--------------------------------------------------%s' % CRT)
-    ct = 0
-    for id in idDict:
-        if idDict[id] > 1:
-            ct += 1
-            fpQcFile.write('%s%s%d%s' %  (id, TAB, idDict[id], CRT))
-    fpQcFile.write('%sTotal: %s%s%s' % (CRT, ct, CRT, CRT))
-
-    fpQcFile.write('Experiments with Invalid Sample Count%s' % CRT)
-    fpQcFile.write('ID%sSample Count%s' % (TAB, CRT))
-    fpQcFile.write('--------------------------------------------------%s' % CRT)
-    ct = 0
-    for id in invalidSampleCountDict:
-        ct += 1
-        fpQcFile.write('%s%s%s%s' %  (id, TAB, invalidSampleCountDict[id], CRT))
-    fpQcFile.write('\nTotal: %s%s%s' % (ct, CRT, CRT))
-
-    fpQcFile.write('Experiments with Invalid Release Date%s' % CRT)
-    fpQcFile.write('ID%sRelease Date%s' % (TAB, CRT))
-    fpQcFile.write('--------------------------------------------------%s' % CRT)
-    ct = 0
-    for id in invalidReleaseDateDict:
-        ct += 1
-        fpQcFile.write('%s%s%s%s' %  (id, TAB, invalidReleaseDateDict[id], CRT))
-    fpQcFile.write('\nTotal: %s%s%s' % (ct, CRT, CRT))
-
-    fpQcFile.write('Experiments with Invalid Update Date%s' % CRT)
-    fpQcFile.write('ID%sUpdate Date%s' % (TAB, CRT))
-    fpQcFile.write('--------------------------------------------------%s' % CRT)
-    ct = 0
-    for id in invalidUpdateDateDict:
-        ct += 1
-        fpQcFile.write('%s%s%s%s' %  (id, TAB, invalidUpdateDateDict[id], CRT))
-    fpQcFile.write('\nTotal: %s%s%s' % (ct, CRT, CRT))
-
-    return
 
 #
 # Purpose: Close file descriptors
