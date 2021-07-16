@@ -90,6 +90,9 @@ sourceKey = 20475431
 # File Descriptors:
 #
 
+# load only experiments with <= MAX_SAMPLES
+maxSamples = os.environ['MAX_SAMPLES']
+
 # to form the sample file to process
 geoDownloads = os.environ['GEO_DOWNLOADS']
 sampleTemplate = os.environ['GEO_SAMPLE_TEMPLATE']
@@ -140,9 +143,6 @@ loadedCount = 0
 # Number of experiments in the db whose pubmed IDs were updated
 updateExptCount = 0
 
-# count of experiments skipped because of 'Third-party reanalysis'
-tprSet = set()
-
 # cache of IDs and counts in the input
 # idDict = {primaryID:count, ...}
 idDict = {}
@@ -180,6 +180,12 @@ expTypesSkippedSet = set()
 
 # experiment ids not in database, type not translated, secondary skip
 expSkippedNotInDbNoTransSet = set()
+
+# experiments skipped because of 'Third-party reanalysis'
+tprSet = set()
+
+# experiments skipped because > maxSamples
+expSkippedMaxSamplesSet = set()
 
 # experiments skipped because no sample file
 expSkippedNoSampleList = []
@@ -406,21 +412,16 @@ def processAll():
     if runParsingReports == 'true':
         fpExpParsingFile.write('expID%ssampleList%stitle%ssummary+overall-design%sisSuperSeries%spdat%sChosen Expt Type%sn_samples%spubmedList%s' % (TAB, TAB, TAB, TAB, TAB, TAB, TAB, TAB, CRT))
         fpSampParsingFile.write('expID%ssampleID%sdescription%stitle%ssType%schannelInfo%s' % (TAB, TAB, TAB, TAB, TAB, CRT))
-    #first = 1
-    fileCt = 0
+    fileCt = 1
     for expFile in str.split(os.environ['EXP_FILES']):
-        if fileCt != 6:
-            #print('fileCt is not 6: %s' % fileCt)
+        if fileCt != 2:
+            print('fileCt is not 10: %s' % fileCt)
             fileCt +=1
             continue
-        #print(CRT)
-        #print(expFile)
-   
-        #if first == 1:
+        print(CRT)
+        print(expFile)
+        print('fileCt is 2: %s' % fileCt)
         process(expFile)
-        #print('fileCt is 6: %s' % fileCt)
-        fileCt +=1
-        #   first = 0
     return
 
 #
@@ -437,7 +438,7 @@ def process(expFile):
     global nextExptKey, nextAccKey, nextExptVarKey, nextPropKey, expSkippedNotInDbTransIsSuperseriesSet
     global updateExptCount, expTypesSkippedSet, expIdsInDbSet
     global expSkippedNoSampleList, expSkippedNotInDbNoTransSet
-    global overallDesign, tprSet
+    global overallDesign, tprSet, expSkippedMaxSamplesSet
 
     f = open(expFile, encoding='utf-8', errors='replace')   
     context = ET.iterparse(f, events=("start","end"))
@@ -496,13 +497,15 @@ def process(expFile):
                     skip = 1
                     print('    expIdNotInDbNoTrans skip')
 
-            # for some reason and elif does not work here. Weird.
             if skip != 1 and isSuperSeries == 'yes':
                 # number of superseries not already caught because of un translated
                 # exptType or already in DB
                 expSkippedNotInDbTransIsSuperseriesSet.add(expID)
                 skip = 1
 
+            if skip != 1 and int(n_samples) > int(maxSamples):
+                expSkippedMaxSamplesSet.add(expID)
+                skip = 1
             print('exptTypeKey: %s isSuperSeries: %s skip: %s' % (exptTypeKey, isSuperSeries, skip))
             if  skip != 1: 
                 # print the row for testing purposes
@@ -748,6 +751,11 @@ def writeQC():
     fpQcFile.write('Number experiments skipped, not already in db, not Third-party reanalysis, type not in translation. Is SuperSeries: %s%s%s' % \
         (len(expSkippedNotInDbTransIsSuperseriesSet), CRT, CRT))
     for id in  expSkippedNotInDbTransIsSuperseriesSet:
+        fpQcFile.write('    %s%s' %  (id, CRT))
+
+    fpQcFile.write('Number experiments skipped, not already in db, not Third-party reanalysis, type not in translation, is not SuperSeries, has > max samples: %s%s%s' % \
+        (len(expSkippedMaxSamplesSet), CRT, CRT))
+    for id in expSkippedMaxSamplesSet:
         fpQcFile.write('    %s%s' %  (id, CRT))
 
     fpQcFile.write('Number experiments skipped because of Sample file issues: %s%s' % (len(expSkippedNoSampleList), CRT))
