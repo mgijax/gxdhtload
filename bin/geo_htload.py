@@ -187,8 +187,11 @@ tprSet = set()
 # experiments skipped because > maxSamples
 expSkippedMaxSamplesSet = set()
 
-# experiments skipped because no sample file
+# experiments skipped because of sample parsing issues
 expSkippedNoSampleList = []
+
+# experiments loaded with no samples because no sample fil
+expLoadedNoSampleList = []
 
 # all experiment ids 
 allExptIdList = []
@@ -437,7 +440,7 @@ def process(expFile):
     global invalidReleaseDateDict, invalidUpdateDateDict, noIdList
     global nextExptKey, nextAccKey, nextExptVarKey, nextPropKey, expSkippedNotInDbTransIsSuperseriesSet
     global updateExptCount, expTypesSkippedSet, expIdsInDbSet
-    global expSkippedNoSampleList, expSkippedNotInDbNoTransSet
+    global expSkippedNoSampleList, expLoadedNoSampleList, expSkippedNotInDbNoTransSet
     global overallDesign, tprSet, expSkippedMaxSamplesSet
 
     f = open(expFile, encoding='utf-8', errors='replace')   
@@ -510,16 +513,18 @@ def process(expFile):
             if  skip != 1: 
                 # print the row for testing purposes
                 loadedCount += 1
-
+                createExpObject = 0
                 # now process the samples
                 rc =  processSamples(expID, n_samples)
                 if rc == 1:
-                    expSkippedNoSampleList.append('expID: %s reason: Missing Sample File' % (expID))
-                    loadedCount -= 1  # decrement the loaded count
+                    expLoadedNoSampleList.append('expID: %s' % (expID))
+                    createExpObject = 1
                 elif rc == 2:
-                    expSkippedNoSampleList.append('expID: %s reason: Error Parsing Sample File' % (expID))
+                    expSkippedNoSampleList.append('expID: %s' % (expID))
                     loadedCount -= 1 # decrement the loaded count
                 else:
+                    createExpObject = 1
+                if createExpObject:
                     print('overallDesign: %s' % overallDesign)
                     # catenate the global overallDesign parsed from the sample to the
                     # experiment summary
@@ -733,34 +738,38 @@ def writeQC():
     fpQcFile.write('Number of experiments loaded: %s%s%s' % \
         (loadedCount, CRT, CRT))
 
-    fpQcFile.write('Number experiments skipped, already in DB: %s%s%s' %\
-        (len(expIdsInDbSet), CRT, CRT))
+    fpQcFile.write('Number experiments skipped, already in DB: %s%s' %\
+        (len(expIdsInDbSet), CRT))
     for id in  expIdsInDbSet:
         fpQcFile.write('    %s%s' %  (id, CRT))
 
-    fpQcFile.write('Number experiments skipped, not already in db. Is Third-party reanalysis: %s%s' % \
-        (len(tprSet),  CRT))
+    fpQcFile.write('%sNumber experiments skipped, not already in db. Is Third-party reanalysis: %s%s' % \
+        (CRT, len(tprSet),  CRT))
     for id in  tprSet:
         fpQcFile.write('    %s%s' %  (id, CRT))
        
-    fpQcFile.write('Number experiments skipped, not already in db, not Third-party reanalysis. Type not in translation: %s%s%s' % \
-        (len(expSkippedNotInDbNoTransSet), CRT, CRT))
+    fpQcFile.write('%sNumber experiments skipped, not already in db, not Third-party reanalysis. Type not in translation: %s%s%s' % \
+        (CRT, len(expSkippedNotInDbNoTransSet), CRT, CRT))
     for id in  expSkippedNotInDbNoTransSet:
         fpQcFile.write('    %s%s' %  (id, CRT))
 
-    fpQcFile.write('Number experiments skipped, not already in db, not Third-party reanalysis, type not in translation. Is SuperSeries: %s%s%s' % \
-        (len(expSkippedNotInDbTransIsSuperseriesSet), CRT, CRT))
+    fpQcFile.write('%sNumber experiments skipped, not already in db, not Third-party reanalysis, type not in translation. Is SuperSeries: %s%s%s' % \
+        (CRT, len(expSkippedNotInDbTransIsSuperseriesSet), CRT, CRT))
     for id in  expSkippedNotInDbTransIsSuperseriesSet:
         fpQcFile.write('    %s%s' %  (id, CRT))
 
-    fpQcFile.write('Number experiments skipped, not already in db, not Third-party reanalysis, type not in translation, is not SuperSeries, has > max samples: %s%s%s' % \
-        (len(expSkippedMaxSamplesSet), CRT, CRT))
+    fpQcFile.write('%sNumber experiments skipped, not already in db, not Third-party reanalysis, type not in translation, is not SuperSeries, has > max samples: %s%s%s' % \
+        (CRT, len(expSkippedMaxSamplesSet), CRT, CRT))
     for id in expSkippedMaxSamplesSet:
         fpQcFile.write('    %s%s' %  (id, CRT))
 
-    fpQcFile.write('Number experiments skipped because of Sample file issues: %s%s' % (len(expSkippedNoSampleList), CRT))
+    fpQcFile.write('%sNumber experiments skipped because of Sample parsing issues: %s%s' % (CRT, len(expSkippedNoSampleList), CRT))
     for e in expSkippedNoSampleList:
         fpQcFile.write('    %s%s' %  (e, CRT))   
+
+    fpQcFile.write('%sNumber experiments loaded w/o samples, no sample file: %s%s' % (CRT, len(expLoadedNoSampleList), CRT))
+    for e in expLoadedNoSampleList:
+        fpQcFile.write('    %s%s' %  (e, CRT))
 
     fpQcFile.write('%sSet of unique GEO Experiment Types not found in Translation: %s%s' % (CRT, len(expTypesSkippedSet), CRT))
     expTypesSkippedSet = sorted(expTypesSkippedSet)
