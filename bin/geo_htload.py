@@ -101,7 +101,7 @@ sampleTemplate = os.environ['GEO_SAMPLE_TEMPLATE']
 qcFileName = os.environ['QC_RPT']
 fpQcFile = None
 
-# Experiment parsing report
+# Experiment parsing reports
 expParsingFileName = os.environ['EXP_PARSING_RPT']
 fpExpParsingFile = None
 
@@ -415,15 +415,11 @@ def processAll():
     if runParsingReports == 'true':
         fpExpParsingFile.write('expID%ssampleList%stitle%ssummary+overall-design%sisSuperSeries%spdat%sChosen Expt Type%sn_samples%spubmedList%s' % (TAB, TAB, TAB, TAB, TAB, TAB, TAB, TAB, CRT))
         fpSampParsingFile.write('expID%ssampleID%sdescription%stitle%ssType%schannelInfo%s' % (TAB, TAB, TAB, TAB, TAB, CRT))
-    fileCt = 1
     for expFile in str.split(os.environ['EXP_FILES']):
-        if fileCt != 2:
-            print('fileCt is not 10: %s' % fileCt)
-            fileCt +=1
+        print(expFile[-1])
+        if expFile[-1] != '0': # files number 1 - 10, use 0 for file 10
+            print ('skipping: %s' % expFile)
             continue
-        print(CRT)
-        print(expFile)
-        print('fileCt is 2: %s' % fileCt)
         process(expFile)
     return
 
@@ -462,7 +458,7 @@ def process(expFile):
     exptTypeKey = 0        # if 0 chosen gdstype did not translate, skip
     isTpr = 0
     for event, elem in context:
-        # start of a record - reset everything
+        # end of a record - reset everything
         if event=='end' and elem.tag == 'DocumentSummary':
             expCount += 1
             skip = 0
@@ -483,17 +479,7 @@ def process(expFile):
                     print('    tprSet.add skip')
 
             if skip != 1:
-                # pick first valid experiment type and translate it
-                found = 0               
-                for exptType in typeList:
-                    if exptType not in exptTypeTransDict:
-                        expTypesSkippedSet.add(exptType)
-                    # we take the FIRST translatable expt type in the list
-                    # but we want to iterate through all types to get all
-                    # that do not translate i.e. don't use i'break'
-                    elif exptType in exptTypeTransDict and found == 0:
-                        exptTypeKey= exptTypeTransDict[exptType]
-                        found = 1
+                (exptTypeKey, exptType) = processExperimentType(typeList)
                 if exptTypeKey == 0:
                     # expts whose type doesn't translate and is not already in the db
                     expSkippedNotInDbNoTransSet.add(expID)
@@ -575,6 +561,21 @@ def process(expFile):
     
     elem.clear()
 
+def processExperimentType(typeList):
+     # pick first valid experiment type and translate it
+     exptTypeKey = 0
+     found = 0
+     for exptType in typeList:
+         if exptType not in exptTypeTransDict:
+             expTypesSkippedSet.add(exptType)
+         # we take the FIRST translatable expt type in the list
+         # but we want to iterate through all types to get all
+         # that do not translate i.e. don't use i'break'
+         elif exptType in exptTypeTransDict and found == 0:
+             exptTypeKey= exptTypeTransDict[exptType]
+             found = 1
+     return (exptTypeKey, exptType)
+
 def processSamples(expID, n_samples):
     global overallDesign
 
@@ -626,7 +627,8 @@ def processSamples(expID, n_samples):
                     channelList.append(channelDict)
 
                 channelString = processChannels(channelList)
-                fpSampParsingFile.write('%s%s%s%s%s%s%s%s%s%s%s%s' % (expID, TAB, sampleID, TAB, description, TAB, title, TAB, sType, TAB, channelString, CRT))
+                if runParsingReports == 'true':
+                    fpSampParsingFile.write('%s%s%s%s%s%s%s%s%s%s%s%s' % (expID, TAB, sampleID, TAB, description, TAB, title, TAB, sType, TAB, channelString, CRT))
                 # reset
                 sampleID = ''
                 description =  ''
