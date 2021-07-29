@@ -103,13 +103,20 @@ def process():
         url = ftpUrlTemplate.replace('~x~', xPart)
         url = url.replace('~id~', id)
         file = ftpFileTemplate.replace('~id~', id)
+        unzipped = '%s/%s' % (GEO_DOWNLOADS, file[:-4])
         print('file: %s' % file)
         print(url)
+
+        # checked to see if the unzipped file exists, if it does don't unzip
+        isFile = os.path.isfile(unzipped)
+        if isFile:
+            print('Already exists: %s' % unzipped)
+            continue
 
         # create command and run it
         # -nc no clobber - if the file exists, don't overwrite it
         cmd = 'wget -nc -O %s/%s %s' % (GEO_DOWNLOADS, file, url)
-        print(cmd)
+        print('cmd: %s' % cmd)
         result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
         stdout = result.stdout
         stderr = result.stderr
@@ -117,12 +124,6 @@ def process():
         print('wget statusCode: %s stderr: %s' % (statusCode, stderr))
         print ('type(statusCode): %s' % type(statusCode))
 
-        # checked to see if the unzipped file exists, if it does don't unzip
-        unzipped = '%s/%s' % (GEO_DOWNLOADS, file[:-4])
-        isFile = os.path.isfile(unzipped)
-        if isFile:
-            print('Already exists: %s' % unzipped)
-            continue
         # untar/unzip the file
         cmd = '/usr/bin/tar -xzvf %s/%s ' % (GEO_DOWNLOADS, file) 
         print(cmd)
@@ -131,6 +132,33 @@ def process():
         stderr = result.stderr
         statusCode = result.returncode
         print('tar statusCode: %s stderr: %s' % (statusCode, stderr))
+
+	# remove extraneous files from the tarball and the 
+	# *.tgz, GPL*, GSM*
+        cmd = '/usr/bin/rm -f %s/%s ' % (GEO_DOWNLOADS, file)
+        print(cmd)
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+        stdout = result.stdout
+        stderr = result.stderr
+        statusCode = result.returncode
+        print('rm statusCode: %s stderr: %s' % (statusCode, stderr))
+
+        cmd = '/usr/bin/rm -f %s/GPL* ' % (GEO_DOWNLOADS)
+        print(cmd)
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+        stdout = result.stdout
+        stderr = result.stderr
+        statusCode = result.returncode
+        print('rm statusCode: %s stderr: %s' % (statusCode, stderr))
+
+        cmd = '/usr/bin/rm -f %s/GSM* ' % (GEO_DOWNLOADS)
+        print(cmd)
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+        stdout = result.stdout
+        stderr = result.stderr
+        statusCode = result.returncode
+        print('rm statusCode: %s stderr: %s' % (statusCode, stderr))
+
     return
 
 ### main ###
