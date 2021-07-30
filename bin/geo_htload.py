@@ -48,9 +48,6 @@ userKey = 1561
 # Experiment MGIType key
 mgiTypeKey = 42
 
-# ArrayExpress LogicalDB key
-aeLdbKey = 189
-
 # GEO LogicalDB key
 geoLdbKey = 190
 
@@ -64,27 +61,27 @@ exptVariableTermKey = 20475439
 
 # For GXD_HTExperiment:
 # 'Not Evaluated' from 'GXD HT Evaluation State' (vocab key = 116) 
-defaultEvalStateTermKey = 20225941 
-
-# When SUPERSERIES appears in description
-# 'No' from  'GXD HT Evaluation State' (vocab key = 116)
-altEvalStateTermKey=20225943
+evalStateTermKey = 20225941 
 
 # 'Not Done' from GXD HT Curation State' (vocab key=117)
 curStateTermKey = 20475422
 
-# When SUPERSERIES appears in description
-# 'Not Applicable' from 'GXD HT Curation State' (vocab key = 117)
-altCurStateTermKey = 20475420
-
 # 'Not Curated' from 'GXD HT Study Type' (vocab key=124)
 studyTypeTermKey = 20475461 
 
-# 'Not Resolved' from GXD HT Experiment Type' (vocab key=121)
-exptTypeNRKey = 20475438
+# null values in gxd_htexperiment
+evalByKey = ''
+initCurByKey = ''
+lastCurByKey = ''
+initCurDate = ''
+lastCurDate = ''
 
-# 'ArrayExpress' from 'GXD HT Source' (vocab key = 119)
-sourceKey = 20475431  
+# 'GEO' from 'GXD HT Source' (vocab key = 119)
+sourceKey = 87145238
+
+# no release or lastupdatedate
+releasedate = ''
+lastupdatedate = ''
 
 #
 # File Descriptors:
@@ -95,7 +92,7 @@ maxSamples = os.environ['MAX_SAMPLES']
 
 # to form the sample file to process
 geoDownloads = os.environ['GEO_DOWNLOADS']
-sampleTemplate = os.environ['GEO_SAMPLE_TEMPLATE']
+sampleFileSuffix = os.environ['GEO_SAMPLE_FILE_SUFFIX']
 
 # QC file and descriptor
 qcFileName = os.environ['QC_RPT']
@@ -111,27 +108,41 @@ fpSampParsingFile = None
 runParsingReports = os.environ['RUN_PARSING_RPTS']
 
 #
-# BCP files
+# For bcp 
 #
-experimentFileName = os.environ['EXPERIMENT_BCP']
+# for bcp
+bcpin = '%s/bin/bcpin.csh' % os.environ['PG_DBUTILS']
+server = os.environ['MGD_DBSERVER']
+database = os.environ['MGD_DBNAME']
+
+expt_table = 'GXD_HTExperiment'
+acc_table = 'ACC_Accession'
+exptvar_table = 'GXD_HTExperimentVariable'
+property_table = 'MGI_Property'
+outputDir = os.environ['OUTPUTDIR']
+
+experimentFileName = os.environ['EXPERIMENT_FILENAME']
 fpExperimentBcp = None
 
-accFileName = os.environ['ACC_BCP']
+accFileName = os.environ['ACC_FILENAME']
 fpAccBcp = None
 
-variableFileName = os.environ['VARIABLE_BCP']
+variableFileName = os.environ['VARIABLE_FILENAME']
 fpVariableBcp =  None
 
-propertyFileName = os.environ['PROPERTY_BCP']
+propertyFileName = os.environ['PROPERTY_FILENAME']
 fpPropertyBcp = None
 
-# for MGI_Property:
-expTypePropKey = 20475425
-expFactorPropKey = 20475423
-sampleCountPropKey = 20475424
-contactNamePropKey = 20475426
-namePropKey = 20475428
-pubmedPropKey =	20475430 
+# for MGI_Property
+
+# GXD HT Experiment Property vocab
+expTypePropKey = 20475425       # raw experiment type
+sampleCountPropKey = 20475424   # raw sample count
+namePropKey = 20475428          # raw name
+pubmedPropKey =	20475430        # PubMed ID
+#descriptionPropKey = 87508020   # raw description DO WE NEED THIS?
+
+# GXD HT Experiment
 propTypeKey = 1002
 
 # Number of experiments in GEO xml files
@@ -190,7 +201,7 @@ expSkippedMaxSamplesSet = set()
 # experiments skipped because of sample parsing issues
 expSkippedNoSampleList = []
 
-# experiments loaded with no samples because no sample fil
+# experiments loaded with no samples because no sample file
 expLoadedNoSampleList = []
 
 # all experiment ids 
@@ -233,24 +244,24 @@ def initialize():
             fpSampParsingFile = open(sampParsingFileName, 'w')
         except:
              print('Cannot create %s' % sampParsingFileName)
- 
-    try:
-        fpExperimentBcp = open(experimentFileName, 'w')
-    except:
-        print('Cannot create %s' % experimentFileName)
 
     try:
-        fpAccBcp = open(accFileName, 'w')
+        fpExperimentBcp = open('%s/%s' % (outputDir, experimentFileName), 'w')
+    except:
+        print('Cannot create %s' % (eFile))
+
+    try:
+        fpAccBcp = open('%s/%s' % (outputDir, accFileName), 'w')
     except:
         print('Cannot create %s' % accFileName)
 
     try:
-        fpVariableBcp = open(variableFileName, 'w')
+        fpVariableBcp = open('%s/%s' % (outputDir, variableFileName), 'w')
     except:
         print('Cannot create %s' % variableFileName) 
 
     try:
-        fpPropertyBcp = open(propertyFileName, 'w')
+        fpPropertyBcp = open('%s/%s' % (outputDir, propertyFileName), 'w')
     except:
         print('Cannot create %s' % propertyFileName)
 
@@ -311,7 +322,7 @@ def initialize():
         and e._Experiment_key = p._Object_key
         and p._PropertyTerm_key = %s
         and p._PropertyType_key = %s''' % \
-            (mgiTypeKey, aeLdbKey, pubmedPropKey, propTypeKey), 'auto')
+            (mgiTypeKey, geoLdbKey, pubmedPropKey, propTypeKey), 'auto')
 
     for r in results:
         accid = r['accid'] 
@@ -416,10 +427,10 @@ def processAll():
         fpExpParsingFile.write('expID%ssampleList%stitle%ssummary+overall-design%sisSuperSeries%spdat%sChosen Expt Type%sn_samples%spubmedList%s' % (TAB, TAB, TAB, TAB, TAB, TAB, TAB, TAB, CRT))
         fpSampParsingFile.write('expID%ssampleID%sdescription%stitle%ssType%schannelInfo%s' % (TAB, TAB, TAB, TAB, TAB, CRT))
     for expFile in str.split(os.environ['EXP_FILES']):
-        print(expFile[-1])
-        if expFile[-1] != '0': # files number 1 - 10, use 0 for file 10
-            print ('skipping: %s' % expFile)
-            continue
+        #print(expFile[-1])
+        #if expFile[-1] != '9': # files number 1 - 10, use 0 for file 10
+        #    print ('skipping: %s' % expFile)
+        #    continue
         process(expFile)
     return
 
@@ -511,15 +522,85 @@ def process(expFile):
                 else:
                     createExpObject = 1
                 if createExpObject:
-                    print('overallDesign: %s' % overallDesign)
                     # catenate the global overallDesign parsed from the sample to the
                     # experiment summary
                     description = '%s %s' % (summary, overallDesign)
-                    print('description: %s' % description)
+                    description = description.replace('\t', ' ')
+                    description = description.replace('\n', ' ')
 
                     if runParsingReports == 'true':
                        fpExpParsingFile.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (expID, TAB, ', '.join(sampleList), TAB, title, TAB, description, TAB, isSuperSeries, TAB, pdat, TAB, exptType, TAB, n_samples, TAB, ', '.join(pubmedList), CRT) )
-            
+
+                    #
+                    # GXD_HTExperiment BCP
+                    #
+
+                    line = '%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextExptKey, TAB, sourceKey, TAB, title, TAB, description, TAB, releasedate, TAB, pdat, TAB, loadDate, TAB, evalStateTermKey, TAB, curStateTermKey, TAB, studyTypeTermKey, TAB, exptTypeKey, TAB, evalByKey, TAB, initCurByKey, TAB, lastCurByKey, TAB, initCurDate, TAB, lastCurDate, TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT) 
+                    #print('line: %s' % line)
+                    fpExperimentBcp.write(line)
+           
+                    #
+                    # GXD_HTVariable BCP
+                    #
+                    fpVariableBcp.write('%s%s%s%s%s%s' % (nextExptVarKey, TAB, nextExptKey, TAB, exptVariableTermKey, CRT))
+                    nextExptVarKey += 1
+
+                    #
+                    # ACC_Accession BCP
+                    #
+                    prefixPart, numericPart = accessionlib.split_accnum(expID)
+                    fpAccBcp.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextAccKey, TAB, expID, TAB, prefixPart, TAB, numericPart, TAB, geoLdbKey, TAB, nextExptKey, TAB, mgiTypeKey, TAB, private, TAB, isPreferred, TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT ))
+                    nextAccKey += 1
+
+                    #
+                    # Properties
+                    #
+
+                    # title (1) experiment name namePropKey = 20475428
+                    # n_samples (1) count of samples  sampleCountPropKey = 20475424
+                    # typeList (1-n) raw experiment types expTypePropKey = 20475425
+                    # pubmedList (0-n) pubmed Ids pubmedPropKey = 20475430
+                    # description (1) sample overalldesign + expt summary descriptionPropKey = 87508020
+                    # the template for properties:
+                    propertyTemplate = "#====#%s%s%s#=#%s%s%s%s%s#==#%s#===#%s%s%s%s%s%s%s%s%s" % (TAB, propTypeKey, TAB, TAB, nextExptKey, TAB, mgiTypeKey, TAB, TAB, TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT )
+
+
+                    if title != '':
+                        toLoad = propertyTemplate.replace('#=#', str(namePropKey)).replace('#==#', title).replace('#===#', '1').replace('#====#', str(nextPropKey))
+                        fpPropertyBcp.write(toLoad)
+                        nextPropKey += 1
+
+                    if n_samples != '':
+                        toLoad = propertyTemplate.replace('#=#', str(sampleCountPropKey)).replace('#==#', str(n_samples)).replace('#===#', '1').replace('#====#', str(nextPropKey))
+                        fpPropertyBcp.write(toLoad)
+                        nextPropKey += 1
+
+                    seqNumCt = 1
+                    for e in typeList:
+                        toLoad = propertyTemplate.replace('#=#', str(expTypePropKey)).replace('#==#', e).replace('#===#', str(seqNumCt)).replace('#====#', str(nextPropKey))
+                        fpPropertyBcp.write(toLoad)
+                        seqNumCt += 1
+                        nextPropKey += 1
+
+                    for b in pubmedList:
+                        toLoad = propertyTemplate.replace('#=#', str(pubmedPropKey)).replace('#==#', str(b)).replace('#===#', str(seqNumCt)).replace('#====#', str(nextPropKey))
+                        fpPropertyBcp.write(toLoad)
+                        seqNumCt += 1
+                        nextPropKey += 1
+
+                    if title != '':
+                        toLoad = propertyTemplate.replace('#=#', str(namePropKey)).replace('#==#', title).replace('#===#', '1').replace('#====#', str(nextPropKey))
+                        fpPropertyBcp.write(toLoad)
+                        nextPropKey += 1
+
+
+                    #if description != '':
+                    #    toLoad = propertyTemplate.replace('#=#', str(descriptionPropKey)).replace('#==#', str(description)).replace('#===#', '1').replace('#====#', str(nextPropKey))
+                    #    fpPropertyBcp.write(toLoad)
+                    #    nextPropKey += 1
+
+                    # now increment the experiment key
+                    nextExptKey += 1
             title = ''
             summary = ''
             isSuperSeries = 'no'
@@ -580,12 +661,12 @@ def processSamples(expID, n_samples):
     global overallDesign
 
     #print('expID: %s' % (expID))
-    sampleFile = '%s%s' % (expID, sampleTemplate)
+    sampleFile = '%s%s' % (expID, sampleFileSuffix)
     samplePath = '%s/%s' % (geoDownloads, sampleFile)
     #print(samplePath)
     # check that sample file exists
     if not os.path.exists(samplePath):
-        print('sample file does not exist: %s' % samplePath)
+        #print('sample file does not exist: %s' % samplePath)
         return 1
     f = open(samplePath, encoding='utf-8', errors='replace')
     context = ET.iterparse(f, events=("start","end"))
@@ -778,6 +859,41 @@ def writeQC():
     for type in expTypesSkippedSet:
         fpQcFile.write('    %s%s' %  (type, CRT))
 
+def doBCP():
+    # Purpose: executes bcp
+    # Returns: 1 if error, else 0
+    # Assumes: 
+    # Effects: executes bcp, writes to the database
+    # Throws: Nothing
+    bcpCmd = '%s %s %s %s %s %s "\\t" "\\n" mgd' % (bcpin, server, database, expt_table, outputDir, experimentFileName)
+    print('bcpCmd: %s' % bcpCmd)
+    rc = os.system(bcpCmd)
+
+    if rc:
+        return rc
+
+    bcpCmd = '%s %s %s %s %s %s "\\t" "\\n" mgd' % (bcpin, server, database, acc_table, outputDir, accFileName)
+    print('bcpCmd: %s' % bcpCmd)
+    rc = os.system(bcpCmd)
+
+    if rc:
+        return rc
+
+    bcpCmd = '%s %s %s %s %s %s "\\t" "\\n" mgd' % (bcpin, server, database, exptvar_table, outputDir, variableFileName)
+    print('bcpCmd: %s' % bcpCmd)
+    rc = os.system(bcpCmd)
+
+    if rc:
+        return rc
+
+    bcpCmd = '%s %s %s %s %s %s "\\t" "\\n" mgd' % (bcpin, server, database, property_table, outputDir, propertyFileName)
+    print('bcpCmd: %s' % bcpCmd)
+    rc = os.system(bcpCmd)
+
+    if rc:
+        return rc
+
+    return 0
 #
 # Purpose: Close file descriptors
 # Returns: 1 if file does not exist or is not readable, else 0
@@ -804,3 +920,4 @@ initialize()
 processAll()
 writeQC()
 closeFiles()
+doBCP()
