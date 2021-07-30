@@ -92,19 +92,19 @@ def process():
     for id in geoSampleIdList:
 
         # create url
-        print(id)
+        #print(id)
         if len(id) == 4:
             xPart = id[:-1] + 'nnn'
         if len(id) == 5:
             xPart = id[:-2] + 'nnn'
         else:
             xPart = id[:-3] + 'nnn'
-        print('xPart: %s' % xPart)
+        #print('xPart: %s' % xPart)
         url = ftpUrlTemplate.replace('~x~', xPart)
         url = url.replace('~id~', id)
         file = ftpFileTemplate.replace('~id~', id)
         unzipped = '%s/%s' % (GEO_DOWNLOADS, file[:-4])
-        print('file: %s' % file)
+        #print('file: %s' % file)
         print(url)
 
         # checked to see if the unzipped file exists, if it does don't unzip
@@ -122,7 +122,6 @@ def process():
         stderr = result.stderr
         statusCode = result.returncode
         print('wget statusCode: %s stderr: %s' % (statusCode, stderr))
-        print ('type(statusCode): %s' % type(statusCode))
 
         # untar/unzip the file
         cmd = '/usr/bin/tar -xzvf %s/%s ' % (GEO_DOWNLOADS, file) 
