@@ -137,61 +137,6 @@ STAT=$?
 checkStatus ${STAT} "${GXDHTLOAD}/bin/geo_htload.py"
 
 #
-# Do BCP
-#
-TABLE=GXD_HTExperiment
-
-if [ -s "${OUTPUTDIR}/${TABLE}.bcp" ]
-then
-
-    echo "" >> ${LOG_DIAG}
-    date >> ${LOG_DIAG}
-    echo "BCP data into ${TABLE}"  >> ${LOG_DIAG}
-
-    # BCP new data
-    ${PG_DBUTILS}/bin/bcpin.csh ${MGD_DBSERVER} ${MGD_DBNAME} ${TABLE} ${OUTPUTDIR} ${TABLE}.bcp ${COLDELIM} ${LINEDELIM} >> ${LOG_DIAG}
-fi
-
-TABLE=ACC_Accession
-
-if [ -s "${OUTPUTDIR}/${TABLE}.bcp" ]
-then
-
-    echo "" >> ${LOG_DIAG}
-    date >> ${LOG_DIAG}
-    echo "BCP data into ${TABLE}"  >> ${LOG_DIAG}
-
-    # BCP new data
-    ${PG_DBUTILS}/bin/bcpin.csh ${MGD_DBSERVER} ${MGD_DBNAME} ${TABLE} ${OUTPUTDIR} ${TABLE}.bcp ${COLDELIM} ${LINEDELIM} >> ${LOG_DIAG}
-fi
-
-TABLE=GXD_HTExperimentVariable
-
-if [ -s "${OUTPUTDIR}/${TABLE}.bcp" ]
-then
-
-    echo "" >> ${LOG_DIAG}
-    date >> ${LOG_DIAG}
-    echo "BCP data into ${TABLE}"  >> ${LOG_DIAG}
-
-    # BCP new data
-    ${PG_DBUTILS}/bin/bcpin.csh ${MGD_DBSERVER} ${MGD_DBNAME} ${TABLE} ${OUTPUTDIR} ${TABLE}.bcp ${COLDELIM} ${LINEDELIM} >> ${LOG_DIAG}
-fi
-
-TABLE=MGI_Property
-
-if [ -s "${OUTPUTDIR}/${TABLE}.bcp" ]
-then
-
-    echo "" >> ${LOG_DIAG}
-    date >> ${LOG_DIAG}
-    echo "BCP data into ${TABLE}"  >> ${LOG_DIAG}
-
-    # BCP new data
-    ${PG_DBUTILS}/bin/bcpin.csh ${MGD_DBSERVER} ${MGD_DBNAME} ${TABLE} ${OUTPUTDIR} ${TABLE}.bcp ${COLDELIM} ${LINEDELIM} >> ${LOG_DIAG}
-fi
-
-#
 # run postload cleanup and email logs
 #
 shutDown
