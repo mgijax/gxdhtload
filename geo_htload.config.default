@@ -39,10 +39,16 @@ OUTPUTDIR=${FILEDIR}/output
 INPUTDIR=${FILEDIR}/input
 GEO_DOWNLOADS=${DATADOWNLOADS}/eutils.ncbi.nlm.nih.gov.geo
 
+export FILEDIR ARCHIVEDIR LOGDIR RPTDIR OUTPUTDIR INPUTDIR GEO_DOWNLOADS
+
 # input/output
 QC_RPT=${RPTDIR}/geo_htload_qc.rpt
 EXP_PARSING_RPT=${RPTDIR}/geo_experiment_parsing.rpt
+EXP_IN_DB_PARSING_RPT=${RPTDIR}/geo_experiment_in_db_parsing.rpt
 SAMP_PARSING_RPT=${RPTDIR}/geo_sample_parsing.rpt
+SAMP_IN_DB_PARSING_RPT=${RPTDIR}/geo_sample_in_db_parsing.rpt
+
+export QC_RPT EXP_PARSING_RPT EXP_IN_DB_PARSING_RPT SAMP_PARSING_RPT SAMP_IN_DB_PARSING_RPT
 
 # set to true if you want to run the parsing reports
 RUN_PARSING_RPTS=true
@@ -50,17 +56,15 @@ RUN_PARSING_RPTS=true
 # max number of samples to load, if greater, skip experiment
 MAX_SAMPLES=1000
 
-export FILEDIR ARCHIVEDIR LOGDIR RPTDIR OUTPUTDIR INPUTDIR GEO_DOWNLOADS
-export QC_RPT EXP_PARSING_RPT SAMP_PARSING_RPT RUN_PARSING_RPTS MAX_SAMPLES
+export RUN_PARSING_RPTS MAX_SAMPLES
 
 # BCP file names
 EXPERIMENT_FILENAME=GXD_HTExperiment.bcp
 ACC_FILENAME=ACC_Accession.bcp
 VARIABLE_FILENAME=GXD_HTExperimentVariable.bcp
 PROPERTY_FILENAME=MGI_Property.bcp
-GEO_PROPERTY_FILENAME=MGI_Property-GEO.bcp
 
-export EXPERIMENT_FILENAME VARIABLE_FILENAME PROPERTY_FILENAME GEO_PROPERTY_FILENAME
+export EXPERIMENT_FILENAME ACC_FILENAME VARIABLE_FILENAME PROPERTY_FILENAME
 
 # Full paths to bcp files
 EXPERIMENT_BCP=${OUTPUTDIR}/${EXPERIMENT_FILENAME}
@@ -90,7 +94,7 @@ GEO_UID_FILE=${INPUTDIR}/geo.uid.xml
 GEO_XML_FILE=${GEO_DOWNLOADS}/geo.xml
 
 # GEO Sample file template
-GEO_SAMPLE_TEMPLATE='_family.xml'
+GEO_SAMPLE_FILE_SUFFIX='_family.xml'
 
 # GEO Report file
 GEO_RPT_FILE=${RPTDIR}/geoUpdate.rpt
@@ -98,7 +102,7 @@ GEO_RPT_FILE=${RPTDIR}/geoUpdate.rpt
 # mirror log file
 GEO_LOG_FILE=${LOGDIR}/mirror_geo.log
 
-export GEO_UID_FILE GEO_XML_FILE GEO_SAMPLE_TEMPLATE GEO_RPT_FILE GEO_LOG_FILE
+export GEO_UID_FILE GEO_XML_FILE GEO_SAMPLE_FILE_SUFFIX GEO_RPT_FILE GEO_LOG_FILE
 
 #  Send debug messages to the diagnostic log (true or false)
 LOG_DEBUG=false
