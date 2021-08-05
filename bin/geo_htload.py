@@ -38,6 +38,9 @@ SUPERSERIES='This SuperSeries'
 # today's date
 loadDate = loadlib.loaddate
 
+# evaluation date - null
+evalDate = ''
+
 # user creating the database records, gxdhtload
 # used for record createdBy and modifiedBy
 userKey = 1561 
@@ -193,7 +196,7 @@ expTypesSkippedSet = set()
 expSkippedNotInDbNoTransSet = set()
 
 # experiments skipped because of 'Third-party reanalysis'
-tprSet = set()
+#tprSet = set()
 
 # experiments skipped because > maxSamples
 expSkippedMaxSamplesSet = set()
@@ -482,12 +485,12 @@ def process(expFile):
                 print('    expIdInDb skip')
 
             typeList = list(map(str.strip, gdsType.split(';')))
-            if skip != 1 and 'Third-party reanalysis' in typeList:
-                    tprSet.add(expID)
-                    print("ExpID: %s is 'Third-party reanalysis'" % expID)
-                    print('TypeList: %s' % typeList)
-                    skip = 1
-                    print('    tprSet.add skip')
+            #if skip != 1 and 'Third-party reanalysis' in typeList:
+            #        tprSet.add(expID)
+            #        print("ExpID: %s is 'Third-party reanalysis'" % expID)
+            #        print('TypeList: %s' % typeList)
+            #        skip = 1
+            #        print('    tprSet.add skip')
 
             if skip != 1:
                 (exptTypeKey, exptType) = processExperimentType(typeList)
@@ -535,7 +538,7 @@ def process(expFile):
                     # GXD_HTExperiment BCP
                     #
 
-                    line = '%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextExptKey, TAB, sourceKey, TAB, title, TAB, description, TAB, releasedate, TAB, pdat, TAB, loadDate, TAB, evalStateTermKey, TAB, curStateTermKey, TAB, studyTypeTermKey, TAB, exptTypeKey, TAB, evalByKey, TAB, initCurByKey, TAB, lastCurByKey, TAB, initCurDate, TAB, lastCurDate, TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT) 
+                    line = '%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextExptKey, TAB, sourceKey, TAB, title, TAB, description, TAB, pdat, TAB, releasedate, TAB, evalDate, TAB, evalStateTermKey, TAB, curStateTermKey, TAB, studyTypeTermKey, TAB, exptTypeKey, TAB, evalByKey, TAB, initCurByKey, TAB, lastCurByKey, TAB, initCurDate, TAB, lastCurDate, TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT) 
                     #print('line: %s' % line)
                     fpExperimentBcp.write(line)
            
@@ -826,22 +829,25 @@ def writeQC():
     for id in  expIdsInDbSet:
         fpQcFile.write('    %s%s' %  (id, CRT))
 
-    fpQcFile.write('%sNumber experiments skipped, not already in db. Is Third-party reanalysis: %s%s' % \
-        (CRT, len(tprSet),  CRT))
-    for id in  tprSet:
-        fpQcFile.write('    %s%s' %  (id, CRT))
+    #fpQcFile.write('%sNumber experiments skipped, not already in db. Is Third-party reanalysis: %s%s' % \
+    #    (CRT, len(tprSet),  CRT))
+    #for id in  tprSet:
+    #    fpQcFile.write('    %s%s' %  (id, CRT))
        
-    fpQcFile.write('%sNumber experiments skipped, not already in db, not Third-party reanalysis. Type not in translation: %s%s%s' % \
+    #fpQcFile.write('%sNumber experiments skipped, not already in db, not Third-party reanalysis. Type not in translation: %s%s%s' % \
+    fpQcFile.write('%sNumber experiments skipped, not already in db. Type not in translation: %s%s%s' % \
         (CRT, len(expSkippedNotInDbNoTransSet), CRT, CRT))
     for id in  expSkippedNotInDbNoTransSet:
         fpQcFile.write('    %s%s' %  (id, CRT))
 
-    fpQcFile.write('%sNumber experiments skipped, not already in db, not Third-party reanalysis, type not in translation. Is SuperSeries: %s%s%s' % \
+    # fpQcFile.write('%sNumber experiments skipped, not already in db, not Third-party reanalysis, type not in translation. Is SuperSeries: %s%s%s' % \
+    fpQcFile.write('%sNumber experiments skipped, not already in db, type not in translation. Is SuperSeries: %s%s%s' % \
         (CRT, len(expSkippedNotInDbTransIsSuperseriesSet), CRT, CRT))
     for id in  expSkippedNotInDbTransIsSuperseriesSet:
         fpQcFile.write('    %s%s' %  (id, CRT))
 
-    fpQcFile.write('%sNumber experiments skipped, not already in db, not Third-party reanalysis, type not in translation, is not SuperSeries, has > max samples: %s%s%s' % \
+    # fpQcFile.write('%sNumber experiments skipped, not already in db, not Third-party reanalysis, type not in translation, is not SuperSeries, has > max samples: %s%s%s' % \
+    fpQcFile.write('%sNumber experiments skipped, not already in db, type not in translation, is not SuperSeries, has > max samples: %s%s%s' % \
         (CRT, len(expSkippedMaxSamplesSet), CRT, CRT))
     for id in expSkippedMaxSamplesSet:
         fpQcFile.write('    %s%s' %  (id, CRT))
