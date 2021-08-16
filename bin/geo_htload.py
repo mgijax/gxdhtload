@@ -27,12 +27,10 @@ import xml.etree.ElementTree as ET
 TAB = '\t'
 CRT = '\n'
 
-# Array Express primary ID prefix for GEO experiments
-AEGEOPREFIX = 'E-GEOD-'
+# load only experiments with <= MAX_SAMPLES
+maxSamples = os.environ['MAX_SAMPLES']
 
-# GEO primary ID prefix for experiments
-GEOPREFIX = 'GSE'
-
+# string that identifies supereries which we will not load
 SUPERSERIES='This SuperSeries'
 
 # today's date
@@ -49,7 +47,7 @@ userKey = 1561
 # For ACC_Accession:
 #
 # Experiment MGIType key
-mgiTypeKey = 42
+exptMgiTypeKey = 42
 
 # GEO LogicalDB key
 geoLdbKey = 190
@@ -78,20 +76,17 @@ initCurByKey = ''
 lastCurByKey = ''
 initCurDate = ''
 lastCurDate = ''
+releasedate = ''
 
 # 'GEO' from 'GXD HT Source' (vocab key = 119)
 sourceKey = 87145238
 
-# no release or lastupdatedate
-releasedate = ''
-lastupdatedate = ''
+# For GXD_HTRawSample
+rawSampleMgiTypeKey = 47
 
 #
 # File Descriptors:
 #
-
-# load only experiments with <= MAX_SAMPLES
-maxSamples = os.environ['MAX_SAMPLES']
 
 # to form the sample file to process
 geoDownloads = os.environ['GEO_DOWNLOADS']
@@ -108,12 +103,14 @@ fpExpParsingFile = None
 # Sample parsing report
 sampParsingFileName  = os.environ['SAMP_PARSING_RPT']
 fpSampParsingFile = None
+
+# run parsing reports true/false
 runParsingReports = os.environ['RUN_PARSING_RPTS']
 
 #
 # For bcp 
 #
-# for bcp
+
 bcpin = '%s/bin/bcpin.csh' % os.environ['PG_DBUTILS']
 server = os.environ['MGD_DBSERVER']
 database = os.environ['MGD_DBNAME']
@@ -122,10 +119,18 @@ expt_table = 'GXD_HTExperiment'
 acc_table = 'ACC_Accession'
 exptvar_table = 'GXD_HTExperimentVariable'
 property_table = 'MGI_Property'
+sample_table = 'GXD_HTRawSample'
+keyvalue_table = 'MGI_KeyValue'
 outputDir = os.environ['OUTPUTDIR']
 
 experimentFileName = os.environ['EXPERIMENT_FILENAME']
 fpExperimentBcp = None
+
+sampleFileName = os.environ['SAMPLE_FILENAME']
+fpSampleBcp = None
+
+keyValueFileName = os.environ['KEYVALUE_FILENAME']
+fpKeyValueBcp = None
 
 accFileName = os.environ['ACC_FILENAME']
 fpAccBcp = None
@@ -152,26 +157,13 @@ propTypeKey = 1002
 expCount = 0
 
 # Number experiments loaded
-loadedCount = 0
+exptLoadedCount = 0
+
+# Number of samples loaded
+sampleLoadedCount = 0
 
 # Number of experiments in the db whose pubmed IDs were updated
 updateExptCount = 0
-
-# cache of IDs and counts in the input
-# idDict = {primaryID:count, ...}
-idDict = {}
-
-# records with no id
-noIdList = []
-
-# AE IDs that have non integer sample count
-# looks like {primaryID:sampleCount, ...}
-invalidSampleCountDict = {}
-
-# AE IDs that have invalid release and update dates
-# looks like {primaryID:date, ...}
-invalidReleaseDateDict = {}
-invalidUpdateDateDict = {}
 
 # database lookups
 
@@ -183,7 +175,7 @@ primaryIdDict = {}
 exptTypeTransDict = {}
 
 # pubmed properties by AE ID (primary) in the db
-# {AE ID: [pubmedId1, ..., pubmedIdn], ...}
+# {GEO ID: [pubmedId1, ..., pubmedIdn], ...}
 pubMedByExptDict = {}
 
 # experiment ids in the database skipped, primary skip
@@ -223,13 +215,15 @@ overallDesign = ''
 # Purpose:  Open file descriptors, get next primary keys, create lookups
 # Returns: 1 if file does not exist or is not readable, else 0
 # Assumes: Nothing
-# Effects: Copies & opens files, read a database
+# Effects: opens files, reads a database
 # Throws: Nothing
 #
 def initialize():
     global fpQcFile, fpExpParsingFile, fpSampParsingFile, fpExperimentBcp 
-    global fpAccBcp, fpVariableBcp, fpPropertyBcp, jFile, nextExptKey
+    global fpSampleBcp, fpKeyValueBcp, pubMedByExptDict
+    global fpAccBcp, fpVariableBcp, fpPropertyBcp, nextExptKey
     global nextAccKey, nextExptVarKey, nextPropKey
+    global nextRawSampleKey, nextKeyValueKey
 
     # create file descriptors
     try:
@@ -268,6 +262,16 @@ def initialize():
     except:
         print('Cannot create %s' % propertyFileName)
 
+    try:
+        fpSampleBcp = open('%s/%s' % (outputDir, sampleFileName), 'w')
+    except:
+        print('Cannot create %s' % sampleFileName)
+
+    try:
+        fpKeyValueBcp = open('%s/%s' % (outputDir, keyValueFileName), 'w')
+    except:
+        print('Cannot create %s' % keyValueFileName)
+
 
     db.useOneConnection(1)
 
@@ -300,6 +304,14 @@ def initialize():
     else:
         nextPropKey  = results[0]['maxKey']
 
+    # get next primary key for the Raw Sample table
+    results = db.sql(''' select nextval('gxd_htrawsample_seq') as maxKey ''', 'auto')
+    nextRawSampleKey = results[0]['maxKey']
+
+    # get next primary key for the Key Value table
+    results = db.sql(''' select nextval('mgi_keyvalue_seq') as maxKey ''', 'auto')
+    nextKeyValueKey = results[0]['maxKey']
+
     # Create experiment ID lookup
     results = db.sql('''select accid, _Object_key
         from ACC_Accession
@@ -316,6 +328,7 @@ def initialize():
         exptTypeTransDict[r['badname']] = r['_Object_key']
 
     # create the pubmed ID property lookup by experiment
+    # This will be used in YAK-119 which includes updating pubmed ids
     results = db.sql('''select a.accid, p.value
         from GXD_HTExperiment e, ACC_Accession a, MGI_Property p
         where e._Experiment_key = a._Object_key
@@ -325,7 +338,7 @@ def initialize():
         and e._Experiment_key = p._Object_key
         and p._PropertyTerm_key = %s
         and p._PropertyType_key = %s''' % \
-            (mgiTypeKey, geoLdbKey, pubmedPropKey, propTypeKey), 'auto')
+            (exptMgiTypeKey, geoLdbKey, pubmedPropKey, propTypeKey), 'auto')
 
     for r in results:
         accid = r['accid'] 
@@ -338,87 +351,8 @@ def initialize():
     
     return
 
-def checkPrimaryId(id):
-    global idDict
-    if id not in idDict:
-        idDict[id] = 1
-    else:
-        idDict[id] += 1
-    return
-
-def checkInteger(rawText):
-    if type(rawText) == int:
-        return 1
-    elif type(rawText) == bytes:
-        for c in rawText:
-            if not c.isdigit():
-                return 0
-        return 1
-    return 0
-
-def checkDate(rawText):
-    if rawText.find(',') > -1:
-        return 0
-    # yyyy-mm-dd format
-    ymd = re.compile('([0-9]{4})-([0-9]{2})-([0-9]{2})')
-    ymdMatch = ymd.match(rawText)
-    
-    if ymdMatch:
-        (year, month, day) = ymdMatch.groups()
-        if (1950 <= int(year) <= 2050):
-            if (1 <= int(month) <= 12):
-                if (1 <= int(day) <= 31):
-                    return 1
-    return 0
-
 #
-# Purpose: does QC
-# Returns: 1 if qc error, else 0
-# Assumes: Nothing
-# Effects: 
-# Throws: Nothing
-#
-
-def doQcChecks(primaryID, name, sampleCount, releasedate, lastupdatedate):
-    hasError = 0
-    if primaryID == '':
-        noIdList.append('Name: %s' % name)
-        # if no primary ID skip remaining checks
-        return 1
-    else:
-        checkPrimaryId(primaryID)
-
-    # check that sample is integer
-    if sampleCount and checkInteger(sampleCount)== 0:
-        invalidSampleCountDict[primaryID] = sampleCount
-        hasError = 1
-    # check dates
-    if releasedate != '' and checkDate(releasedate) == 0:
-        invalidReleaseDateDict[primaryID] = releasedate
-        hasError = 1
-
-    if lastupdatedate != '' and checkDate(lastupdatedate) == 0:
-        invalidUpdateDateDict[primaryID]= lastupdatedate
-        hasError = 1
-
-    return hasError
-
-#
-# Purpose: calculate a GEO ID from and AE GEO ID
-# Returns: GEO ID or empty str.if not an AE GEO ID
-# Assumes: Nothing
-# Effects: Nothing
-# Throws: Nothing
-#
-
-def calculateGeoId(primaryID):
-    if primaryID.find(AEGEOPREFIX) == 0:
-        return primaryID.replace(AEGEOPREFIX, GEOPREFIX)
-    else:
-        return ''
-
-#
-# Purpose: Loops through all metadata files sending them to parser
+# Purpose: Loops through all experiment files sending them to parser
 # Returns:
 # Assumes: Nothing
 # Effects:
@@ -426,32 +360,31 @@ def calculateGeoId(primaryID):
 #
 
 def processAll():
+
     if runParsingReports == 'true':
         fpExpParsingFile.write('expID%ssampleList%stitle%ssummary+overall-design%sisSuperSeries%spdat%sChosen Expt Type%sn_samples%spubmedList%s' % (TAB, TAB, TAB, TAB, TAB, TAB, TAB, TAB, CRT))
         fpSampParsingFile.write('expID%ssampleID%sdescription%stitle%ssType%schannelInfo%s' % (TAB, TAB, TAB, TAB, TAB, CRT))
+
     for expFile in str.split(os.environ['EXP_FILES']):
-        #print(expFile[-1])
-        #if expFile[-1] != '9': # files number 1 - 10, use 0 for file 10
-        #    print ('skipping: %s' % expFile)
-        #    continue
         process(expFile)
+
     return
 
 #
 # Purpose: parse input file, QC, create bcp files
-# Returns: 1 if file can be read/processed correctly, else 0
-# Assumes: Nothing
+# Returns: 
+# Assumes: globals have all been initialized
 # Effects: Creates files in the file system
 # Throws: Nothing
 #
 
 def process(expFile):
-    global propertiesDict, expCount, loadedCount, invalidSampleCountDict
-    global invalidReleaseDateDict, invalidUpdateDateDict, noIdList
-    global nextExptKey, nextAccKey, nextExptVarKey, nextPropKey, expSkippedNotInDbTransIsSuperseriesSet
-    global updateExptCount, expTypesSkippedSet, expIdsInDbSet
-    global expSkippedNoSampleList, expLoadedNoSampleList, expSkippedNotInDbNoTransSet
-    global overallDesign, tprSet, expSkippedMaxSamplesSet
+    global expCount, exptLoadedCount, updateExptCount
+    global nextExptKey, nextAccKey, nextExptVarKey, nextPropKey
+    global expSkippedNotInDbTransIsSuperseriesSet, expSkippedNoSampleList
+    global expIdsInDbSet, expLoadedNoSampleList
+    global expSkippedNotInDbNoTransSet, expSkippedMaxSamplesSet
+    #global tprSet
 
     f = open(expFile, encoding='utf-8', errors='replace')   
     context = ET.iterparse(f, events=("start","end"))
@@ -476,7 +409,7 @@ def process(expFile):
         if event=='end' and elem.tag == 'DocumentSummary':
             expCount += 1
             skip = 0
-            print('expID: %s' % expID)
+            print('\n\nexpID: %s' % expID)
             allExptIdList.append(expID)
 
             if expID in primaryIdDict:
@@ -509,20 +442,22 @@ def process(expFile):
             if skip != 1 and int(n_samples) > int(maxSamples):
                 expSkippedMaxSamplesSet.add(expID)
                 skip = 1
-            print('exptTypeKey: %s isSuperSeries: %s skip: %s' % (exptTypeKey, isSuperSeries, skip))
+            #print('exptTypeKey: %s isSuperSeries: %s skip: %s' % (exptTypeKey, isSuperSeries, skip))
             if  skip != 1: 
-                # print the row for testing purposes
-                loadedCount += 1
+                exptLoadedCount += 1
                 createExpObject = 0
                 # now process the samples
-                rc =  processSamples(expID, n_samples)
-                if rc == 1:
+                ret =  processSamples(expID)
+                #print('ret: %s' % ret)
+                if ret == 1:
                     expLoadedNoSampleList.append('expID: %s' % (expID))
                     createExpObject = 1
-                elif rc == 2:
+                elif ret == 2:
                     expSkippedNoSampleList.append('expID: %s' % (expID))
-                    loadedCount -= 1 # decrement the loaded count
+                    exptLoadedCount -= 1 # decrement the loaded count
                 else:
+                    sampleList = ret #  list of sampleString's representing each
+                                     #  sample for the current experiment
                     createExpObject = 1
                 if createExpObject:
                     # catenate the global overallDesign parsed from the sample to the
@@ -552,20 +487,26 @@ def process(expFile):
                     # ACC_Accession BCP
                     #
                     prefixPart, numericPart = accessionlib.split_accnum(expID)
-                    fpAccBcp.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextAccKey, TAB, expID, TAB, prefixPart, TAB, numericPart, TAB, geoLdbKey, TAB, nextExptKey, TAB, mgiTypeKey, TAB, private, TAB, isPreferred, TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT ))
+                    fpAccBcp.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextAccKey, TAB, expID, TAB, prefixPart, TAB, numericPart, TAB, geoLdbKey, TAB, nextExptKey, TAB, exptMgiTypeKey, TAB, private, TAB, isPreferred, TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT ))
                     nextAccKey += 1
 
                     #
-                    # Properties
+                    # Experiment Properties
                     #
 
-                    # title (1) experiment name namePropKey = 20475428
-                    # n_samples (1) count of samples  sampleCountPropKey = 20475424
-                    # typeList (1-n) raw experiment types expTypePropKey = 20475425
-                    # pubmedList (0-n) pubmed Ids pubmedPropKey = 20475430
-                    # description (1) sample overalldesign + expt summary descriptionPropKey = 87508020
+                    # title (1) experiment name 
+                    #   namePropKey = 20475428
+                    # n_samples (1) count of samples  
+                    #   sampleCountPropKey = 20475424
+                    # typeList (1-n) raw experiment types 
+                    #   expTypePropKey = 20475425
+                    # pubmedList (0-n) pubmed Ids 
+                    #   pubmedPropKey = 20475430
+                    # description (1) sample overalldesign + expt summary 
+                    #   descriptionPropKey = 87508020
+
                     # the template for properties:
-                    propertyTemplate = "#====#%s%s%s#=#%s%s%s%s%s#==#%s#===#%s%s%s%s%s%s%s%s%s" % (TAB, propTypeKey, TAB, TAB, nextExptKey, TAB, mgiTypeKey, TAB, TAB, TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT )
+                    propertyTemplate = "#====#%s%s%s#=#%s%s%s%s%s#==#%s#===#%s%s%s%s%s%s%s%s%s" % (TAB, propTypeKey, TAB, TAB, nextExptKey, TAB, exptMgiTypeKey, TAB, TAB, TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT )
 
 
                     if title != '':
@@ -601,6 +542,15 @@ def process(expFile):
                     #    toLoad = propertyTemplate.replace('#=#', str(descriptionPropKey)).replace('#==#', str(description)).replace('#===#', '1').replace('#====#', str(nextPropKey))
                     #    fpPropertyBcp.write(toLoad)
                     #    nextPropKey += 1
+
+                    
+                    #
+                    # GXD_HTRawSample and MGI_KeyValue BCP
+                    #
+                    # ret from processSample = 1 means there was no sample file
+                    # so exeriment is created, but no samples
+                    if ret != 1:
+                        processSampleBcp(sampleList, nextExptKey) 
 
                     # now increment the experiment key
                     nextExptKey += 1
@@ -645,7 +595,21 @@ def process(expFile):
     
     elem.clear()
 
+    return
+
+#
+# Purpose: looks a the list of expt types and determines if
+#       there is one in the expt translation. 
+# Returns: expt type and expt type key of the chosen expt type; both 0 if
+#       no translatable expt type
+# Assumes: exptTypeTransDict has been initialized
+# Effects: 
+# Throws: Nothing
+#
+
 def processExperimentType(typeList):
+     global expTypesSkippedSet
+
      # pick first valid experiment type and translate it
      exptTypeKey = 0
      found = 0
@@ -660,17 +624,32 @@ def processExperimentType(typeList):
              found = 1
      return (exptTypeKey, exptType)
 
-def processSamples(expID, n_samples):
+
+#
+# Purpose: parses the sample file for 'expID' if it exists
+# Returns: 1 if the sample file does not exist, 2 if parsing errors, 
+#       otherwise sampleList. sampleList is a list of strings of sample
+#       metadata, one for each sample
+# Assumes: Nothing
+# Effects: 
+# Throws: Nothing
+#
+
+def processSamples(expID):
     global overallDesign
 
     #print('expID: %s' % (expID))
     sampleFile = '%s%s' % (expID, sampleFileSuffix)
     samplePath = '%s/%s' % (geoDownloads, sampleFile)
     #print(samplePath)
-    # check that sample file exists
+
+    # if sample file does not exist return 1
     if not os.path.exists(samplePath):
-        #print('sample file does not exist: %s' % samplePath)
         return 1
+
+    # list of samples for this experiment to return
+    sampleList = []
+
     f = open(samplePath, encoding='utf-8', errors='replace')
     context = ET.iterparse(f, events=("start","end"))
     context = iter(context)
@@ -694,15 +673,22 @@ def processSamples(expID, n_samples):
     # first dict in list is channel 1, second is channel 2 (if there is one)
     channelList = []
 
-    # Channel, there can be 1 or 2, need for sequence of sets of source/taxid/treatment/molecule
+    # Channel, there can be 1 or 2, need for sequence of sets of 
+    # source/taxid/treatment/molecule
     cCount = 0 
+
+    #
+    # Parse the sample file
+    #
     try:
         for event, elem in context:
             if event == 'start':
                 level += 1
             if event == 'end':
                 level -= 1
+            #
             # we are done processing a sample, print and reset
+            #
             if event == 'end' and elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Sample':
                 # if the dict is not empty, add it to the list
                 if channelDict:
@@ -710,10 +696,21 @@ def processSamples(expID, n_samples):
                     #print('set second channel in channelList')
                     channelList.append(channelDict)
 
+                # process the 1 or 2 channels for the current sample
                 channelString = processChannels(channelList)
+
+                # the string of attributes representing the current sample
+                sampleString = ('%s%s%s%s%s%s%s%s%s%s%s' % (expID, TAB, sampleID, TAB, description, TAB, title, TAB, sType, TAB, channelString))
+
+                # append to the list of attributes for each sample in this 
+                # experiment
+                sampleList.append(sampleString)
+
                 if runParsingReports == 'true':
-                    fpSampParsingFile.write('%s%s%s%s%s%s%s%s%s%s%s%s' % (expID, TAB, sampleID, TAB, description, TAB, title, TAB, sType, TAB, channelString, CRT))
-                # reset
+                    fpSampParsingFile.write('%s%s' % (sampleString, CRT))
+                #
+                # reset all attributes
+                #
                 sampleID = ''
                 description =  ''
                 title = ''
@@ -726,6 +723,9 @@ def processSamples(expID, n_samples):
                 channelDict = {}
                 channelList = []
 
+            #
+            # Tag Level 2
+            #
             if level == 2:
                 if elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Sample':
                     sampleID = str.strip(elem.get('iid'))
@@ -733,7 +733,13 @@ def processSamples(expID, n_samples):
                     if overallDesign == None:
                         overallDesign = ''
                     else:
-                        overallDesign = str.strip(elem.text)
+                        overallDesign = ((str.strip(elem.text)).replace(TAB, '')).replace(CRT, '')
+
+
+            #
+            # Tag Level 3
+            #
+ 
             if level == 3:
                 if elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Description':
                     description = elem.text
@@ -746,57 +752,80 @@ def processSamples(expID, n_samples):
                     if title == None:
                         title = ''
                     else:
-                        title = str.strip(title)
+                        title = ((str.strip(title)).replace(TAB, '')).replace(CRT, '')
                 elif elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Type':
                     sType = elem.text
                     if sType == None:
                         sType = ''
                     else:
-                        sType = str.strip(sType)
+                        sType = ((str.strip(sType)).replace(TAB, '')).replace(CRT, '')
                 elif elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Channel':
-                    #print('sId: %s tag: %s text: %s attrib: %s' % (sampleID, elem.tag, elem.text, elem.get('position')))
                     cCount = int(elem.get('position'))
-                    # if we have a second channel, append the first to the List and reset the dict
+                    # if we have a second channel, append the first to the 
+                    # List and reset the dict
                     if cCount == 2:
                         channelList.append(channelDict)
-                        #print('set first channel in channelList')
                         channelDict = {}
+
                 elif elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Characteristics':
                     tag = elem.get('tag')
                     if tag == None: # not an attrib just get the text
                         tag = 'Characteristics' # name it
-                    tag = str.strip(tag)   # strip it, might be attrib
-                    value = str.strip(elem.text) # get the value
-                    #print('expID: %s sampleID: %s tag: %s value: %s' % (expID, sampleID, tag, value))
-                    if value != None and value != '':
+
+                    # strip and replace internal tabs and crt's
+                    tag = ((str.strip(tag)).replace(TAB, '')).replace(CRT, '') 
+                    value = ((str.strip(elem.text)).replace(TAB, '')).replace(CRT, '') 
+                    print('expID: %s sampleID: %s tag: %s value: %s' % \
+                        (expID, sampleID, tag, value))
+                    if value is not None and value != '':
                         channelDict[tag] = value
-            
+
+
+            #
+            # Tag Level 4
+            #
+ 
             if level == 4:
                 if elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Source':
                     source = elem.text
-                    if source != None:
+                    if source is not None and source != '':
                         channelDict['source'] = str.strip(source)
                 elif elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Organism':
                     taxid = elem.get('taxid')
-                    if taxid != None:
+                    if taxid is not None and taxid != '':
                         channelDict['taxid'] = str.strip(taxid)
                     taxidValue = elem.text
-                    if taxidValue != None:
+                    if taxidValue is not None and taxidValue != '':
                         channelDict['taxidValue'] = str.strip(taxidValue)
 
                 elif elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Treatment-Protocol':
                     treatmentProt = elem.text
-                    if treatmentProt != None:
-                        channelDict['treatmentProt'] = ((str.strip(treatmentProt)).replace(TAB, '')).replace(CRT, '')
-                elif elem.tag == elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Molecule':
+                    treatmentProt = ((str.strip(treatmentProt)).replace(TAB, '')).replace(CRT, '')
+                    #if treatmentProt[-1] == '\\':
+                    #    treatmentProt = treatmentProt[0:-1]
+                    print('expID: %s sampleID: %s treatmentProt: "%s"' % (expID, sampleID, treatmentProt))
+                    if treatmentProt is not None and treatmentProt != '':
+                        print('adding to channelDict expID: %s sampleID: %s treatmentProt: %s' % (expID, sampleID, treatmentProt))
+                        channelDict['treatmentProt'] = treatmentProt
+                elif elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Molecule':
                     molecule = elem.text
-                    if molecule != None:
+                    if molecule is not None and molecule != '':
                         channelDict['molecule'] = str.strip(molecule)
-    except:
+    except: # there was a parsing error
         return 2
 
-    return 0 
-def processChannels(channelList):
+    return sampleList
+
+#
+# Purpose: creates a string representation of channel metadata in channelList
+# Returns: empty string if no channels or string of channel data pipe delimited
+#       if two channels
+# Assumes: Nothing
+# Effects:
+# Throws: Nothing
+#
+
+def processChannels(channelList): # list of 1 or 2 dictionaries of key/value
     # no channels in this sample, return empty string
     if not channelList:
         return ''
@@ -807,14 +836,124 @@ def processChannels(channelList):
         string2 = processOneChannel(channelList[1])
         return '%s|||%s' % (string1, string2)
 
+#
+# Purpose: processes one dictionary of channel metadata, delimiting key/value
+#       with':::', delimiting each key/value with '!!!'
+# Returns: string representing channel metadata for one channel
+# Assumes: Nothing
+# Effects:
+# Throws: Nothing
+#
+
 def processOneChannel(channelDict):
     keyValueList = []
     for key in channelDict:
-        keyValueList.append('%s:%s' % (key, channelDict[key]))
-    return ', '.join(keyValueList)
+        keyValueList.append('%s:::%s' % (key, channelDict[key]))
+    return '!!!'.join(keyValueList)
+
+#
+# Purpose: parses a list of sample strings for a single experiment
+#       and writes to bcp file for gxd_htrawsample and mgi_keyvalue
+#       for the channel data
+# Returns: 
+# Assumes: Nothing
+# Effects: increments the global raw sample and key value primary keys
+# Throws: Nothing
+#
+
+def processSampleBcp(sampleList, # list of samples for current experiment
+                        nextExptKey): # expt key for samples we are processing
+
+    global nextRawSampleKey, nextKeyValueKey, sampleLoadedCount
+
+    sampleLoadedCount += 1
+
+    #
+    # sampleString looks like:
+    # (expID, TAB, sampleID, TAB, description, TAB, title, TAB, sType, 
+    #    TAB, channelString)
+    #
+    # channelString looks like:
+    # '!!!' delim key:value,  '|||' delim channel
+    #
+    for sampleString in sampleList:
+        print('sampleString: %s' % sampleString)
+        expID, sampleID, description, title, sType, channelString = str.split(sampleString, TAB) 
+
+        # write to fpSampleBcp here
+        fpSampleBcp.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextRawSampleKey, TAB, nextExptKey, TAB, sampleID, TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT))
+
+        channels = str.split(channelString, '|||')
+        seqNum = 1 # there can be 1 or 2 channels, data for each channel
+                   # distinguished by seqNum
+
+        for channel in channels:
+            tokens = str.split(channel, '!!!')
+            print('tokens: %s' % tokens)
+            for keyValue in tokens:
+                print('keyValue: %s' % keyValue)
+                key, value = str.split(keyValue, ':::')
+                if key == 'antibody':
+                    print('raw value: %s' % value)
+                value = value.replace('\\', '\\\\')
+                value = value.replace('#', '\#')
+                value = value.replace('?', '\?')
+                value = value.replace('\n', '\\n')
+                #value = value.replace('μ', '')
+                #value = value.replace('µ', '')
+                #value = value.replace('′', '')
+                key = key.replace('\\', '\\\\')
+                key = key.replace('#', '\#')
+                key = key.replace('?', '\?')
+                key = key.replace('\n', '\\n')
+                #key = key.replace('μ', '')
+                #key = key.replace('µ', '')
+                #key = key.replace('′', '')
+
+                # replace em-dash with two en-dash
+                value = value.replace(b'\xe2\x80\x94'.decode('utf-8'), '--')
+                key = key.replace(b'\xe2\x80\x94'.decode('utf-8'), '--')
+                if key == 'antibody':
+                    print('value after replace: "%s"' % value)
+                print('value: %s' % value)
+                # this removes non-ascii characters; 
+                # 'replace' replaces with '?'
+                #value_encode = value.encode('ascii', 'ignore')
+                #key_encode = key.encode('ascii', 'ignore')
+                value_encode = value.encode('ascii', 'replace')
+                key_encode = key.encode('ascii', 'replace')
+                print('value_encode: %s' % value_encode)
+                print('key_encode: %s' % key_encode)
+                value_decode = value_encode.decode()
+                key_decode = key_encode.decode()
+                print('value_decode: %s' % value_decode)
+                print('key_decode: %s' % key_decode)
+
+                if value_decode == '-' or value_decode == '' or value_decode is None:
+                    print('updated to --')
+                    value_decode = '--'
+                print('new value_decode for %s: %s' % (key_decode, value_decode))
+                # write to fpKeyValueBcp here
+                fpKeyValueBcp.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextKeyValueKey, TAB, nextRawSampleKey, TAB, rawSampleMgiTypeKey, TAB, key_decode, TAB, value_decode, TAB, seqNum, TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT))
+                nextKeyValueKey += 1     
+            # increment, there may be a second channel
+            seqNum += 1 
+
+        # increment the sample key, multiple samples/experiment
+        nextRawSampleKey += 1
+
+    return
+
+#
+# Purpose: writes out QC to the QC file
+# Returns: 
+# Assumes: Nothing
+# Effects:
+# Throws: Nothing
+#
 
 def writeQC():
-    global expTypesSkippedSet, expIdsInDbSet
+    #global expTypesSkippedSet, expIdsInDbSet
 
     fpQcFile.write('GEO HT Raw Data Load QC%s%s%s' % (CRT, CRT, CRT))
 
@@ -822,7 +961,10 @@ def writeQC():
         (expCount, CRT, CRT))
 
     fpQcFile.write('Number of experiments loaded: %s%s%s' % \
-        (loadedCount, CRT, CRT))
+        (exptLoadedCount, CRT, CRT))
+
+    fpQcFile.write('Number of samples loaded: %s%s%s' % \
+        (sampleLoadedCount, CRT, CRT))
 
     fpQcFile.write('Number experiments skipped, already in DB: %s%s' %\
         (len(expIdsInDbSet), CRT))
@@ -861,16 +1003,22 @@ def writeQC():
         fpQcFile.write('    %s%s' %  (e, CRT))
 
     fpQcFile.write('%sSet of unique GEO Experiment Types not found in Translation: %s%s' % (CRT, len(expTypesSkippedSet), CRT))
-    expTypesSkippedSet = sorted(expTypesSkippedSet)
-    for type in expTypesSkippedSet:
+    sortedSet = sorted(expTypesSkippedSet)
+    for type in sortedSet:
         fpQcFile.write('    %s%s' %  (type, CRT))
 
+    return
+
+#
+# Purpose: executes bcp
+# Returns: non-zero if bcp error, else 0
+# Assumes:
+# Effects: executes bcp, writes to the database
+# Throws: Nothing
+#
+
 def doBCP():
-    # Purpose: executes bcp
-    # Returns: 1 if error, else 0
-    # Assumes: 
-    # Effects: executes bcp, writes to the database
-    # Throws: Nothing
+    
     bcpCmd = '%s %s %s %s %s %s "\\t" "\\n" mgd' % (bcpin, server, database, expt_table, outputDir, experimentFileName)
     print('bcpCmd: %s' % bcpCmd)
     rc = os.system(bcpCmd)
@@ -896,6 +1044,26 @@ def doBCP():
     print('bcpCmd: %s' % bcpCmd)
     rc = os.system(bcpCmd)
 
+    bcpCmd = '%s %s %s %s %s %s "\\t" "\\n" mgd' % (bcpin, server, database, sample_table, outputDir, sampleFileName)
+    print('bcpCmd: %s' % bcpCmd)
+    rc = os.system(bcpCmd)
+
+    if rc:
+        return rc
+
+    bcpCmd = '%s %s %s %s %s %s "\\t" "\\n" mgd' % (bcpin, server, database, keyvalue_table, outputDir, keyValueFileName)
+    print('bcpCmd: %s' % bcpCmd)
+    rc = os.system(bcpCmd)
+
+    if rc:
+        return rc
+
+    # update gxd_htrawsample_seq auto-sequence
+    db.sql(''' select setval('gxd_htrawsample_seq', (select max(_RawSample_key) from GXD_HTRawSample)) ''', None)
+
+    # update mgi_keyvalue_seq auto-sequence
+    db.sql(''' select setval('gxd_htrawsample_seq', (select max(_KeyValue_key) from MGI_KeyValue)) ''', None)
+
     if rc:
         return rc
 
@@ -913,6 +1081,8 @@ def closeFiles():
     fpExpParsingFile.close()
     fpSampParsingFile.close()
     fpExperimentBcp.close()
+    fpSampleBcp.close()
+    fpKeyValueBcp.close()
     fpAccBcp.close()
     fpVariableBcp.close()
     fpPropertyBcp.close()
