@@ -122,7 +122,7 @@ fi
 #
 # createArchive including OUTPUTDIR, startLog, getConfigEnv
 # sets "JOBKEY"
-preload ${OUTPUTDIR}
+preload #${OUTPUTDIR}
 
 # get the listing of experiment files
 EXP_FILES=`ls ${GEO_DOWNLOADS}/geo.xml.*`
