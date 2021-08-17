@@ -866,8 +866,6 @@ def processSampleBcp(sampleList, # list of samples for current experiment
 
     global nextRawSampleKey, nextKeyValueKey, sampleLoadedCount
 
-    sampleLoadedCount += 1
-
     #
     # sampleString looks like:
     # (expID, TAB, sampleID, TAB, description, TAB, title, TAB, sType, 
@@ -877,6 +875,7 @@ def processSampleBcp(sampleList, # list of samples for current experiment
     # '!!!' delim key:value,  '|||' delim channel
     #
     for sampleString in sampleList:
+        sampleLoadedCount += 1
         print('sampleString: %s' % sampleString)
         expID, sampleID, description, title, sType, channelString = str.split(sampleString, TAB) 
 
