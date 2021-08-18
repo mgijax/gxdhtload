@@ -84,11 +84,21 @@ then
     mkdir -p ${GEO_DOWNLOADS}
 fi
 
+# how far to go back to fetch experiments in days
+reldate=${EXPT_DOWNLOAD_DAYS}
+
 #
 # step one get query key, web env and query count
 #
-wget  -a ${LOG} -O $GEO_UID_FILE "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=gds&term=GSE[ETYP]+AND+Mus[ORGN]&retmax=300000&usehistory=y&datetype=pdat"
-# &reldate=36500
+if [ -z ${reldate} ]
+then
+    echo "empty"
+    wget  -a ${LOG} -O $GEO_UID_FILE "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=gds&term=GSE[ETYP]+AND+Mus[ORGN]&retmax=300000&usehistory=y&datetype=pdat"
+else
+    echo "not empty"
+    wget  -a ${LOG} -O $GEO_UID_FILE "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=gds&term=GSE[ETYP]+AND+Mus[ORGN]&reldate=${reldate}&retmax=300000&usehistory=y&datetype=pdat"
+fi
+
 QUERY_KEY=`cat ${GEO_UID_FILE} | grep '<QueryKey>' | cut -d'>' -f8 | cut -d'<' -f1`
 WEB_ENV=`cat ${GEO_UID_FILE} | grep '<WebEnv>' | cut -d'>' -f10 | cut -d'<' -f1`
 GEO_COUNT=`cat ${GEO_UID_FILE} | grep '<Count>' | cut -d'>' -f2 | cut -d'<' -f1`
@@ -109,8 +119,11 @@ retrieve_start=0
 # step two get experiments from the history server
 #
 
-# first  delete old files
-rm -f ${GEO_XML_FILE}.*
+# first  delete old files from the archive directory
+rm -f ${GEO_DOWNLOADS_ARCHIVE}/${EXPT_XML_FILE}.*
+
+# then move the last processed files to the archive directory
+mv ${GEO_DOWNLOADS}/${EXPT_XML_FILE}.* ${GEO_DOWNLOADS_ARCHIVE}
 
 # Loop grabbing retrieve_max experiments at a time
 while [ $retrieve_start -lt $GEO_COUNT ]
