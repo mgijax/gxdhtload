@@ -67,3 +67,8 @@ then
     mkdir -p ${INPUTDIR}
 fi
 
+# create the experiment files archive if it doesn't exist
+if [ ! -d ${GEO_DOWNLOADS_ARCHIVE} ]
+then
+    mkdir -p ${GEO_DOWNLOADS_ARCHIVE}
+fi
