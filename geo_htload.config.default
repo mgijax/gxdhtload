@@ -37,11 +37,9 @@ LOGDIR=${FILEDIR}/logs
 RPTDIR=${FILEDIR}/reports
 OUTPUTDIR=${FILEDIR}/output
 INPUTDIR=${FILEDIR}/input
-GEO_DOWNLOADS=${DATADOWNLOADS}/eutils.ncbi.nlm.nih.gov.geo
 
-export FILEDIR ARCHIVEDIR LOGDIR RPTDIR OUTPUTDIR INPUTDIR GEO_DOWNLOADS
+export FILEDIR ARCHIVEDIR LOGDIR RPTDIR OUTPUTDIR INPUTDIR 
 
-# input/output
 QC_RPT=${RPTDIR}/geo_htload_qc.rpt
 EXP_PARSING_RPT=${RPTDIR}/geo_experiment_parsing.rpt
 EXP_IN_DB_PARSING_RPT=${RPTDIR}/geo_experiment_in_db_parsing.rpt
@@ -89,11 +87,22 @@ export LOG_FILE LOG_PROC LOG_DIAG LOG_CUR LOG_VAL
 #
 # GEO Experiment and sample file mirroring
 #
+EXPT_XML_FILE=geo.xml
+GEO_DOWNLOADS=${DATADOWNLOADS}/eutils.ncbi.nlm.nih.gov.geo
+GEO_DOWNLOADS_ARCHIVE="${GEO_DOWNLOADS}.archive"
+
+# how far to go back to fetch experiments in days (this is by release date)
+# if this var does not exist or is empty ("") then all experiments downloaded
+EXPT_DOWNLOAD_DAYS=730
+#EXPT_DOWNLOAD_DAYS=""
+
+export EXPT_XML_FILE GEO_DOWNLOADS GEO_DOWNLOADS_ARCHIVE EXPT_DOWNLOAD_DAYS
+
 # GEO UID file; we parse this for values to get GEO_XML_FILE
 GEO_UID_FILE=${INPUTDIR}/geo.uid.xml
 
 # GEO Experiment XML file prefix (GEO_XML_FILE.1, .2 and so on
-GEO_XML_FILE=${GEO_DOWNLOADS}/geo.xml
+GEO_XML_FILE=${GEO_DOWNLOADS}/${EXPT_XML_FILE}
 
 # GEO Sample file template
 GEO_SAMPLE_FILE_SUFFIX='_family.xml'
