@@ -680,139 +680,139 @@ def processSamples(expID):
     #
     # Parse the sample file
     #
-    try:
-        for event, elem in context:
-            if event == 'start':
-                level += 1
-            if event == 'end':
-                level -= 1
+    #try:
+    for event, elem in context:
+        if event == 'start':
+            level += 1
+        if event == 'end':
+            level -= 1
+        #
+        # we are done processing a sample, print and reset
+        #
+        if event == 'end' and elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Sample':
+            # if the dict is not empty, add it to the list
+            if channelDict:
+                #print(channelDict)
+                #print('set second channel in channelList')
+                channelList.append(channelDict)
+
+            # process the 1 or 2 channels for the current sample
+            channelString = processChannels(channelList)
+
+            # the string of attributes representing the current sample
+            sampleString = ('%s%s%s%s%s%s%s%s%s%s%s' % (expID, TAB, sampleID, TAB, description, TAB, title, TAB, sType, TAB, channelString))
+
+            # append to the list of attributes for each sample in this 
+            # experiment
+            sampleList.append(sampleString)
+
+            if runParsingReports == 'true':
+                fpSampParsingFile.write('%s%s' % (sampleString, CRT))
             #
-            # we are done processing a sample, print and reset
+            # reset all attributes
             #
-            if event == 'end' and elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Sample':
-                # if the dict is not empty, add it to the list
-                if channelDict:
-                    #print(channelDict)
-                    #print('set second channel in channelList')
+            sampleID = ''
+            description =  ''
+            title = ''
+            sType = ''
+            molecule = ''
+            taxid = ''
+            taxidValue = ''
+            treatmentProt = ''
+            overallDesign = ''
+            channelDict = {}
+            channelList = []
+
+        #
+        # Tag Level 2
+        #
+        if level == 2:
+            if elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Sample':
+                sampleID = str.strip(elem.get('iid'))
+            elif elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Overall-Design':
+                if overallDesign == None:
+                    overallDesign = ''
+                else:
+                    overallDesign = ((str.strip(elem.text)).replace(TAB, '')).replace(CRT, '')
+
+
+        #
+        # Tag Level 3
+        #
+
+        if level == 3:
+            if elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Description':
+                description = elem.text
+                if description == None:
+                    description = ''
+                else:
+                    description = ((str.strip(description)).replace(TAB, '')).replace(CRT, '')
+            elif elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Title':
+                title = elem.text
+                if title == None:
+                    title = ''
+                else:
+                    title = ((str.strip(title)).replace(TAB, '')).replace(CRT, '')
+            elif elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Type':
+                sType = elem.text
+                if sType == None:
+                    sType = ''
+                else:
+                    sType = ((str.strip(sType)).replace(TAB, '')).replace(CRT, '')
+            elif elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Channel':
+                cCount = int(elem.get('position'))
+                # if we have a second channel, append the first to the 
+                # List and reset the dict
+                if cCount == 2:
                     channelList.append(channelDict)
+                    channelDict = {}
 
-                # process the 1 or 2 channels for the current sample
-                channelString = processChannels(channelList)
+            elif elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Characteristics':
+                tag = elem.get('tag')
+                if tag == None: # not an attrib just get the text
+                    tag = 'Characteristics' # name it
 
-                # the string of attributes representing the current sample
-                sampleString = ('%s%s%s%s%s%s%s%s%s%s%s' % (expID, TAB, sampleID, TAB, description, TAB, title, TAB, sType, TAB, channelString))
-
-                # append to the list of attributes for each sample in this 
-                # experiment
-                sampleList.append(sampleString)
-
-                if runParsingReports == 'true':
-                    fpSampParsingFile.write('%s%s' % (sampleString, CRT))
-                #
-                # reset all attributes
-                #
-                sampleID = ''
-                description =  ''
-                title = ''
-                sType = ''
-                molecule = ''
-                taxid = ''
-                taxidValue = ''
-                treatmentProt = ''
-                overallDesign = ''
-                channelDict = {}
-                channelList = []
-
-            #
-            # Tag Level 2
-            #
-            if level == 2:
-                if elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Sample':
-                    sampleID = str.strip(elem.get('iid'))
-                elif elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Overall-Design':
-                    if overallDesign == None:
-                        overallDesign = ''
-                    else:
-                        overallDesign = ((str.strip(elem.text)).replace(TAB, '')).replace(CRT, '')
+                # strip and replace internal tabs and crt's
+                tag = ((str.strip(tag)).replace(TAB, '')).replace(CRT, '') 
+                value = ((str.strip(elem.text)).replace(TAB, '')).replace(CRT, '') 
+                print('expID: %s sampleID: %s tag: %s value: %s' % \
+                    (expID, sampleID, tag, value))
+                if value is not None and value != '':
+                    channelDict[tag] = value
 
 
-            #
-            # Tag Level 3
-            #
- 
-            if level == 3:
-                if elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Description':
-                    description = elem.text
-                    if description == None:
-                        description = ''
-                    else:
-                        description = ((str.strip(description)).replace(TAB, '')).replace(CRT, '')
-                elif elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Title':
-                    title = elem.text
-                    if title == None:
-                        title = ''
-                    else:
-                        title = ((str.strip(title)).replace(TAB, '')).replace(CRT, '')
-                elif elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Type':
-                    sType = elem.text
-                    if sType == None:
-                        sType = ''
-                    else:
-                        sType = ((str.strip(sType)).replace(TAB, '')).replace(CRT, '')
-                elif elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Channel':
-                    cCount = int(elem.get('position'))
-                    # if we have a second channel, append the first to the 
-                    # List and reset the dict
-                    if cCount == 2:
-                        channelList.append(channelDict)
-                        channelDict = {}
+        #
+        # Tag Level 4
+        #
 
-                elif elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Characteristics':
-                    tag = elem.get('tag')
-                    if tag == None: # not an attrib just get the text
-                        tag = 'Characteristics' # name it
+        if level == 4:
+            if elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Source':
+                source = elem.text
+                if source is not None and source != '':
+                    channelDict['source'] = str.strip(source)
+            elif elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Organism':
+                taxid = elem.get('taxid')
+                if taxid is not None and taxid != '':
+                    channelDict['taxid'] = str.strip(taxid)
+                taxidValue = elem.text
+                if taxidValue is not None and taxidValue != '':
+                    channelDict['taxidValue'] = str.strip(taxidValue)
 
-                    # strip and replace internal tabs and crt's
-                    tag = ((str.strip(tag)).replace(TAB, '')).replace(CRT, '') 
-                    value = ((str.strip(elem.text)).replace(TAB, '')).replace(CRT, '') 
-                    print('expID: %s sampleID: %s tag: %s value: %s' % \
-                        (expID, sampleID, tag, value))
-                    if value is not None and value != '':
-                        channelDict[tag] = value
-
-
-            #
-            # Tag Level 4
-            #
- 
-            if level == 4:
-                if elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Source':
-                    source = elem.text
-                    if source is not None and source != '':
-                        channelDict['source'] = str.strip(source)
-                elif elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Organism':
-                    taxid = elem.get('taxid')
-                    if taxid is not None and taxid != '':
-                        channelDict['taxid'] = str.strip(taxid)
-                    taxidValue = elem.text
-                    if taxidValue is not None and taxidValue != '':
-                        channelDict['taxidValue'] = str.strip(taxidValue)
-
-                elif elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Treatment-Protocol':
-                    treatmentProt = elem.text
+            elif elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Treatment-Protocol':
+                treatmentProt = elem.text
+                #if treatmentProt[-1] == '\\':
+                #    treatmentProt = treatmentProt[0:-1]
+                print('expID: %s sampleID: %s treatmentProt: "%s"' % (expID, sampleID, treatmentProt))
+                if treatmentProt is not None and treatmentProt != '':
                     treatmentProt = ((str.strip(treatmentProt)).replace(TAB, '')).replace(CRT, '')
-                    #if treatmentProt[-1] == '\\':
-                    #    treatmentProt = treatmentProt[0:-1]
-                    print('expID: %s sampleID: %s treatmentProt: "%s"' % (expID, sampleID, treatmentProt))
-                    if treatmentProt is not None and treatmentProt != '':
-                        print('adding to channelDict expID: %s sampleID: %s treatmentProt: %s' % (expID, sampleID, treatmentProt))
-                        channelDict['treatmentProt'] = treatmentProt
-                elif elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Molecule':
-                    molecule = elem.text
-                    if molecule is not None and molecule != '':
+                    print('adding to channelDict expID: %s sampleID: %s treatmentProt: %s' % (expID, sampleID, treatmentProt))
+                    channelDict['treatmentProt'] = treatmentProt
+            elif elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Molecule':
+                molecule = elem.text
+                if molecule is not None and molecule != '':
                         channelDict['molecule'] = str.strip(molecule)
-    except: # there was a parsing error
-        return 2
+    #except: # there was a parsing error
+    #    return 2
 
     return sampleList
 
@@ -1095,4 +1095,4 @@ initialize()
 processAll()
 writeQC()
 closeFiles()
-doBCP()
+#doBCP()
