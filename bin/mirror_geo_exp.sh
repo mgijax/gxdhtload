@@ -92,10 +92,8 @@ reldate=${EXPT_DOWNLOAD_DAYS}
 #
 if [ -z ${reldate} ]
 then
-    echo "empty"
     wget  -a ${LOG} -O $GEO_UID_FILE "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=gds&term=GSE[ETYP]+AND+Mus[ORGN]&retmax=300000&usehistory=y&datetype=pdat"
 else
-    echo "not empty"
     wget  -a ${LOG} -O $GEO_UID_FILE "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=gds&term=GSE[ETYP]+AND+Mus[ORGN]&reldate=${reldate}&retmax=300000&usehistory=y&datetype=pdat"
 fi
 
