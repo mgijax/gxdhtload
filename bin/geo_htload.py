@@ -416,6 +416,39 @@ def process(expFile):
                 skip = 1
                 expIdsInDbSet.add(expID)
                 print('    expIdInDb skip')
+                 # not all experiments have pubmed IDs
+                if expID in pubMedByExptDict:
+                    # get the list of pubmed Ids for this expt in the database
+                    dbBibList = pubMedByExptDict[expID]
+
+                    # get the set of incoming pubmed IDs not in the database
+                    newSet = set(pubmedList).difference(set(dbBibList))
+
+                    # if we have new pubmed IDs, add them to the database
+                    if newSet:
+                        print('found new pubmed ids: %s' % newSet)
+                        updateExpKey = primaryIdDict[expID]
+
+                        # get next sequenceNum for this expt's pubmed ID
+                        # in the database
+                        results = db.sql('''select max(sequenceNum) + 1
+                            as nextNum
+                            from MGI_Property p
+                            where p._Object_key =  %s
+                            and p._PropertyTerm_key = 20475430
+                            and p._PropertyType_key = 1002''' % updateExpKey, 'auto')
+
+                        nextSeqNum = results[0]['nextNum']
+
+                        updateExptCount += 1
+
+                        for b in newSet:
+                            toLoad = propertyUpdateTemplate.replace('#=#', str(pubmedPropKey)).replace('#==#', str(b)).replace('#===#', str(nextSeqNum)).replace('#====#', str(nextPropKey)).replace('#=====#', str(updateExpKey))
+                            fpPropertyBcp.write(toLoad)
+                            nextPropKey += 1
+                # continue so we don't dup what is in the db
+                #continue this is handled by 'skip'
+
 
             typeList = list(map(str.strip, gdsType.split(';')))
             #if skip != 1 and 'Third-party reanalysis' in typeList:

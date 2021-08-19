@@ -93,8 +93,8 @@ GEO_DOWNLOADS_ARCHIVE="${GEO_DOWNLOADS}.archive"
 
 # how far to go back to fetch experiments in days (this is by release date)
 # if this var does not exist or is empty ("") then all experiments downloaded
-EXPT_DOWNLOAD_DAYS=730
-#EXPT_DOWNLOAD_DAYS=""
+#EXPT_DOWNLOAD_DAYS=730
+EXPT_DOWNLOAD_DAYS=""
 
 export EXPT_XML_FILE GEO_DOWNLOADS GEO_DOWNLOADS_ARCHIVE EXPT_DOWNLOAD_DAYS
 
