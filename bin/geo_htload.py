@@ -164,7 +164,7 @@ sampleLoadedCount = 0
 
 # Number of experiments in the db whose pubmed IDs were updated
 updateExptCount = 0
-
+updateExptList = []
 # database lookups
 
 # AE IDs in the database
@@ -379,7 +379,7 @@ def processAll():
 #
 
 def process(expFile):
-    global expCount, exptLoadedCount, updateExptCount
+    global expCount, exptLoadedCount, updateExptCount, updateExptList
     global nextExptKey, nextAccKey, nextExptVarKey, nextPropKey
     global expSkippedNotInDbTransIsSuperseriesSet, expSkippedNoSampleList
     global expIdsInDbSet, expLoadedNoSampleList
@@ -413,42 +413,45 @@ def process(expFile):
             allExptIdList.append(expID)
 
             if expID in primaryIdDict:
+                propertyUpdateTemplate = "#====#%s%s%s#=#%s#=====#%s%s%s#==#%s#===#%s%s%s%s%s%s%s%s%s" % (TAB, propTypeKey, TAB, TAB, TAB, exptMgiTypeKey, TAB, TAB, TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT )
                 skip = 1
                 expIdsInDbSet.add(expID)
                 print('    expIdInDb skip')
+                dbBibList = []
                  # not all experiments have pubmed IDs
                 if expID in pubMedByExptDict:
                     # get the list of pubmed Ids for this expt in the database
                     dbBibList = pubMedByExptDict[expID]
 
-                    # get the set of incoming pubmed IDs not in the database
-                    newSet = set(pubmedList).difference(set(dbBibList))
+                # get the set of incoming pubmed IDs not in the database
+                newSet = set(pubmedList).difference(set(dbBibList))
 
-                    # if we have new pubmed IDs, add them to the database
-                    if newSet:
-                        print('found new pubmed ids: %s' % newSet)
-                        updateExpKey = primaryIdDict[expID]
+                # if we have new pubmed IDs, add them to the database
+                if newSet:
+                    print('found new pubmed ids: %s' % newSet)
+                    updateExpKey = primaryIdDict[expID]
 
-                        # get next sequenceNum for this expt's pubmed ID
-                        # in the database
-                        results = db.sql('''select max(sequenceNum) + 1
-                            as nextNum
-                            from MGI_Property p
-                            where p._Object_key =  %s
-                            and p._PropertyTerm_key = 20475430
-                            and p._PropertyType_key = 1002''' % updateExpKey, 'auto')
+                    # get next sequenceNum for this expt's pubmed ID
+                    # in the database
+                    results = db.sql('''select max(sequenceNum) + 1
+                        as nextNum
+                        from MGI_Property p
+                        where p._Object_key =  %s
+                        and p._PropertyTerm_key = 20475430
+                        and p._PropertyType_key = 1002''' % updateExpKey, 'auto')
 
-                        nextSeqNum = results[0]['nextNum']
+                    nextSeqNum = results[0]['nextNum']
+                    if nextSeqNum == None:
+                        nextSeqNum = 1
+                    updateExptCount += 1
+                    updateExptList.append(expID)
 
-                        updateExptCount += 1
-
-                        for b in newSet:
-                            toLoad = propertyUpdateTemplate.replace('#=#', str(pubmedPropKey)).replace('#==#', str(b)).replace('#===#', str(nextSeqNum)).replace('#====#', str(nextPropKey)).replace('#=====#', str(updateExpKey))
-                            fpPropertyBcp.write(toLoad)
-                            nextPropKey += 1
-                # continue so we don't dup what is in the db
-                #continue this is handled by 'skip'
-
+                    for b in newSet:
+                        toLoad = propertyUpdateTemplate.replace('#=#', str(pubmedPropKey)).replace('#==#', str(b)).replace('#===#', str(nextSeqNum)).replace('#====#', str(nextPropKey)).replace('#=====#', str(updateExpKey))
+                        fpPropertyBcp.write(toLoad)
+                        nextPropKey += 1
+            # continue so we don't dup what is in the db
+            #continue this is handled by 'skip'
 
             typeList = list(map(str.strip, gdsType.split(';')))
             #if skip != 1 and 'Third-party reanalysis' in typeList:
@@ -835,10 +838,10 @@ def processSamples(expID):
                 treatmentProt = elem.text
                 #if treatmentProt[-1] == '\\':
                 #    treatmentProt = treatmentProt[0:-1]
-                print('expID: %s sampleID: %s treatmentProt: "%s"' % (expID, sampleID, treatmentProt))
+                #print('expID: %s sampleID: %s treatmentProt: "%s"' % (expID, sampleID, treatmentProt))
                 if treatmentProt is not None and treatmentProt != '':
                     treatmentProt = ((str.strip(treatmentProt)).replace(TAB, '')).replace(CRT, '')
-                    print('adding to channelDict expID: %s sampleID: %s treatmentProt: %s' % (expID, sampleID, treatmentProt))
+                    #print('adding to channelDict expID: %s sampleID: %s treatmentProt: %s' % (expID, sampleID, treatmentProt))
                     channelDict['treatmentProt'] = treatmentProt
             elif elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Molecule':
                 molecule = elem.text
@@ -1034,6 +1037,10 @@ def writeQC():
     for e in expLoadedNoSampleList:
         fpQcFile.write('    %s%s' %  (e, CRT))
 
+    fpQcFile.write('%sNumber experiments updated PubMed ID properties: %s%s' % (CRT, len(updateExptList), CRT))
+    for e in updateExptList:
+        fpQcFile.write('    %s%s' %  (e, CRT))
+
     fpQcFile.write('%sSet of unique GEO Experiment Types not found in Translation: %s%s' % (CRT, len(expTypesSkippedSet), CRT))
     sortedSet = sorted(expTypesSkippedSet)
     for type in sortedSet:
@@ -1094,7 +1101,7 @@ def doBCP():
     db.sql(''' select setval('gxd_htrawsample_seq', (select max(_RawSample_key) from GXD_HTRawSample)) ''', None)
 
     # update mgi_keyvalue_seq auto-sequence
-    db.sql(''' select setval('gxd_htrawsample_seq', (select max(_KeyValue_key) from MGI_KeyValue)) ''', None)
+    db.sql(''' select setval('mgi_keyvalue_seq', (select max(_KeyValue_key) from MGI_KeyValue)) ''', None)
 
     if rc:
         return rc
