@@ -443,7 +443,7 @@ def process(expFile):
             # add raw sample data to those curated experiments that do not have it
             #
             if expID in primaryIdDict:
-
+                updateExpKey = primaryIdDict[expID]
                 #
                 # check for additional pubmed IDs
                 #
@@ -466,7 +466,6 @@ def process(expFile):
                 # if we have new pubmed IDs, add them to the database
                 if newSet:
                     print('found new pubmed ids: %s' % newSet)
-                    updateExpKey = primaryIdDict[expID]
 
                     # get next sequenceNum for this expt's pubmed ID
                     # in the database
@@ -1186,4 +1185,4 @@ initialize()
 processAll()
 writeQC()
 closeFiles()
-doBCP()
+#doBCP()
