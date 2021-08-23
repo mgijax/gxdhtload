@@ -56,6 +56,11 @@ MAX_SAMPLES=1000
 
 export RUN_PARSING_RPTS MAX_SAMPLES
 
+# set to true if you want to load samples for curated GEO experiments
+LOAD_SAMPLES_FOR_CURATED_GEO=true
+
+export LOAD_SAMPLES_FOR_CURATED_GEO
+
 # BCP file names
 EXPERIMENT_FILENAME=GXD_HTExperiment.bcp
 ACC_FILENAME=ACC_Accession.bcp
@@ -135,7 +140,7 @@ export JOBSTREAM
 MAIL_LOADNAME="GEO HT load"
 
 #  Recipient list for mailing the log files (comma-separated)
-MAIL_LOG_PROC="mgiadmin"
+MAIL_LOG_PROC=""
 
 export MAIL_LOADNAME MAIL_LOG_PROC
 
