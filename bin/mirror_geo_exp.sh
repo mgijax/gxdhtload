@@ -136,3 +136,6 @@ done
 
 ALL_FILES=`ls ${GEO_DOWNLOADS}/geo.xml.*`
 export ALL_FILES
+
+# Now mirror the samples
+./mirror_geo_sample.sh
