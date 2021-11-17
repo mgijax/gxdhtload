@@ -975,6 +975,16 @@ def processSampleBcp(sampleList, # list of samples for current experiment
         channels = str.split(channelString, '|||')
         seqNum = 1 # there can be 1 or 2 channels, data for each channel
                    # distinguished by seqNum
+        # write out key/value for description, title and sType
+        if description != None and description != '':
+            fpKeyValueBcp.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextKeyValueKey, TAB, nextRawSampleKey, TAB, rawSampleMgiTypeKey, TAB, 'description', TAB, description, TAB, seqNum, TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT))
+            nextKeyValueKey += 1
+        if title != None and title != '':
+            fpKeyValueBcp.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextKeyValueKey, TAB, nextRawSampleKey, TAB, rawSampleMgiTypeKey, TAB, 'title', TAB, title, TAB, seqNum, TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT))
+            nextKeyValueKey += 1
+        if sType != None and sType != '':
+            fpKeyValueBcp.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextKeyValueKey, TAB, nextRawSampleKey, TAB, rawSampleMgiTypeKey, TAB, 'sType', TAB, sType, TAB, seqNum, TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT))
+            nextKeyValueKey += 1
 
         for channel in channels:
             tokens = str.split(channel, '!!!')
