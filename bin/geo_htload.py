@@ -286,34 +286,17 @@ def initialize():
 
     db.useOneConnection(1)
 
-    # get next primary key for the Experiment table    
-    results = db.sql('''select max(_Experiment_key) + 1 as maxKey 
-        from GXD_HTExperiment''', 'auto')
-    if results[0]['maxKey'] == None:
-        nextExptKey = 1000
-    else:
-        nextExptKey  = results[0]['maxKey']
-
     # get next primary key for the Accession table
-    results = db.sql('''select max(_Accession_key) + 1 as maxKey 
-        from ACC_Accession''', 'auto')
+    results = db.sql('''select max(_Accession_key) + 1 as maxKey from ACC_Accession''', 'auto')
     nextAccKey  = results[0]['maxKey']
 
-    # get next primary key for the ExperimentVariable table
-    results = db.sql('''select max(_ExperimentVariable_key) + 1 as maxKey 
-        from GXD_HTExperimentVariable''', 'auto')
-    if results[0]['maxKey'] == None:
-        nextExptVarKey = 1000
-    else:
-        nextExptVarKey  = results[0]['maxKey']
+    # get next primary key for the Experiment table    
+    results = db.sql(''' select nextval('gxd_htexperiment_seq') as maxKey ''', 'auto')
+    nextExptKey  = results[0]['maxKey']
 
-    # get next primary key for the Property table
-    results = db.sql('''select max(_Property_key) + 1 as maxKey 
-        from MGI_Property''', 'auto')
-    if results[0]['maxKey'] == None:
-        nextPropKey = 1000
-    else:
-        nextPropKey  = results[0]['maxKey']
+    # get next primary key for the ExperimentVariable table
+    results = db.sql(''' select nextval('gxd_htexperimentvariable_seq') as maxKey ''', 'auto')
+    nextExptVarKey  = results[0]['maxKey']
 
     # get next primary key for the Raw Sample table
     results = db.sql(''' select nextval('gxd_htrawsample_seq') as maxKey ''', 'auto')
@@ -322,6 +305,10 @@ def initialize():
     # get next primary key for the Key Value table
     results = db.sql(''' select nextval('mgi_keyvalue_seq') as maxKey ''', 'auto')
     nextKeyValueKey = results[0]['maxKey']
+
+    # get next primary key for the Property table
+    results = db.sql(''' select nextval('mgi_property_seq') as maxKey ''', 'auto')
+    nextPropKey  = results[0]['maxKey']
 
     # Create experiment ID lookup - we are looking at preferred = 1 or 2 because they
     # can be either
@@ -1156,11 +1143,20 @@ def doBCP():
     if rc:
         return rc
 
+    # update gxd_htexperiment_seq auto-sequence
+    db.sql(''' select setval('gxd_htexperiment_seq', (select max(_Experiment_key) from GXD_HTExperiment)) ''', None)
+
+    # update gxd_htexperimentvariable_seq auto-sequence
+    db.sql(''' select setval('gxd_htexperimentvariable_seq', (select max(_ExperimentVariable_key) from GXD_HTExperimentVariable)) ''', None)
+
     # update gxd_htrawsample_seq auto-sequence
     db.sql(''' select setval('gxd_htrawsample_seq', (select max(_RawSample_key) from GXD_HTRawSample)) ''', None)
 
     # update mgi_keyvalue_seq auto-sequence
     db.sql(''' select setval('mgi_keyvalue_seq', (select max(_KeyValue_key) from MGI_KeyValue)) ''', None)
+
+    # update mgi_property_seq auto-sequence
+    db.sql(''' select setval('mgi_property_seq', (select max(_Property_key) from MGI_Property)) ''', None)
 
     if rc:
         return rc
