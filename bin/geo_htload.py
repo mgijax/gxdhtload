@@ -823,7 +823,7 @@ def processSamples(expID, inDb): # inDb 'true' or 'false'
                 if overallDesign == None:
                     overallDesign = ''
                 else:
-                    overallDesign = ((str.strip(elem.text)).replace(TAB, '')).replace(CRT, '')
+                    overallDesign = ((str.strip(elem.text)).replace(TAB, ' ')).replace(CRT, ' ')
 
 
         #
@@ -836,19 +836,19 @@ def processSamples(expID, inDb): # inDb 'true' or 'false'
                 if description == None:
                     description = ''
                 else:
-                    description = ((str.strip(description)).replace(TAB, '')).replace(CRT, '')
+                    description = ((str.strip(description)).replace(TAB, ' ')).replace(CRT, ' ')
             elif elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Title':
                 title = elem.text
                 if title == None:
                     title = ''
                 else:
-                    title = ((str.strip(title)).replace(TAB, '')).replace(CRT, '')
+                    title = ((str.strip(title)).replace(TAB, ' ')).replace(CRT, ' ')
             elif elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Type':
                 sType = elem.text
                 if sType == None:
                     sType = ''
                 else:
-                    sType = ((str.strip(sType)).replace(TAB, '')).replace(CRT, '')
+                    sType = ((str.strip(sType)).replace(TAB, ' ')).replace(CRT, ' ')
             elif elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Channel':
                 cCount = int(elem.get('position'))
                 # if we have a second channel, append the first to the 
@@ -863,8 +863,8 @@ def processSamples(expID, inDb): # inDb 'true' or 'false'
                     tag = 'Characteristics' # name it
 
                 # strip and replace internal tabs and crt's
-                tag = ((str.strip(tag)).replace(TAB, '')).replace(CRT, '') 
-                value = ((str.strip(elem.text)).replace(TAB, '')).replace(CRT, '') 
+                tag = ((str.strip(tag)).replace(TAB, ' ')).replace(CRT, ' ') 
+                value = ((str.strip(elem.text)).replace(TAB, ' ')).replace(CRT, ' ') 
                 #print('expID: %s sampleID: %s tag: %s value: %s' % \
                 #    (expID, sampleID, tag, value))
                 if value is not None and value != '':
@@ -894,7 +894,7 @@ def processSamples(expID, inDb): # inDb 'true' or 'false'
                 #    treatmentProt = treatmentProt[0:-1]
                 #print('expID: %s sampleID: %s treatmentProt: "%s"' % (expID, sampleID, treatmentProt))
                 if treatmentProt is not None and treatmentProt != '':
-                    treatmentProt = ((str.strip(treatmentProt)).replace(TAB, '')).replace(CRT, '')
+                    treatmentProt = ((str.strip(treatmentProt)).replace(TAB, ' ')).replace(CRT, ' ')
                     #print('adding to channelDict expID: %s sampleID: %s treatmentProt: %s' % (expID, sampleID, treatmentProt))
                     channelDict['treatmentProt'] = treatmentProt
             elif elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Molecule':
