@@ -27,6 +27,9 @@ import xml.etree.ElementTree as ET
 TAB = '\t'
 CRT = '\n'
 
+# default experiment confidence value
+confidence = 0.0
+
 # load only experiments with <= MAX_SAMPLES
 maxSamples = os.environ['MAX_SAMPLES']
 
@@ -544,7 +547,7 @@ def process(expFile):
                     # GXD_HTExperiment BCP
                     #
 
-                    line = '%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextExptKey, TAB, sourceKey, TAB, title, TAB, description, TAB, pdat, TAB, releasedate, TAB, evalDate, TAB, evalStateTermKey, TAB, curStateTermKey, TAB, studyTypeTermKey, TAB, exptTypeKey, TAB, evalByKey, TAB, initCurByKey, TAB, lastCurByKey, TAB, initCurDate, TAB, lastCurDate, TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT) 
+                    line = '%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextExptKey, TAB, sourceKey, TAB, title, TAB, description, TAB, pdat, TAB, releasedate, TAB, evalDate, TAB, evalStateTermKey, TAB, curStateTermKey, TAB, studyTypeTermKey, TAB, exptTypeKey, TAB, evalByKey, TAB, initCurByKey, TAB, lastCurByKey, TAB, initCurDate, TAB, lastCurDate, TAB, confidence, TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT) 
                     #print('line: %s' % line)
                     fpExperimentBcp.write(line)
            
