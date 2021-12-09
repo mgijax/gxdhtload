@@ -136,6 +136,10 @@ ${PYTHON} ${GXDHTLOAD}/bin/geo_htload.py >> ${LOG_DIAG}
 STAT=$?
 checkStatus ${STAT} "${GXDHTLOAD}/bin/geo_htload.py"
 
+echo 'Running geo_htload.py'  | tee -a ${LOG_DIAG}
+${PYTHON} ${GXDHTLOAD}/bin/processPredicted.sh >> ${LOG_DIAG}
+STAT=$?
+checkStatus ${STAT} "${GXDHTLOAD}/bin/processPredicted.sh
 #
 # run postload cleanup and email logs
 #
