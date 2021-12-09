@@ -132,6 +132,23 @@ export JOBSTREAM
 
 ###########################################################################
 #
+# GXD HT Classifier Configuration
+#
+###########################################################################
+
+# The input to the prediction script created by processRelevance.py
+NOT_EVALUATED_EXPERIMENT=${OUTPUTDIR}/notevaluated.experiment.txt
+
+# The output from the prediction script - .../lib/python_anaconda/predict.py
+PREDICTED_EXPERIMENT=${OUTPUTDIR}/predicted.experiment.txt
+
+# The log for the classifier post processing steps
+LOG_EXPERIMENT=${LOGDIR}/predicted.log
+
+export NOT_EVALUATED_EXPERIMENT PREDICTED_EXPERIMENT LOG_EXPERIMENT
+
+###########################################################################
+#
 #  MISCELLANEOUS SETTINGS
 #
 ###########################################################################
