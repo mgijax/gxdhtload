@@ -44,7 +44,7 @@ evalDate = ''
 
 # user creating the database records, gxdhtload
 # used for record createdBy and modifiedBy
-userKey = 1561 
+userKey = 1626 
 
 #
 # For ACC_Accession:
