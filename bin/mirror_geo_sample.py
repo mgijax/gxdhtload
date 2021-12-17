@@ -92,14 +92,17 @@ def process():
     for id in geoSampleIdList:
 
         # create url
-        #print(id)
+        print(id)
         if len(id) == 4:
+            print('id length is 4')
             xPart = id[:-1] + 'nnn'
-        if len(id) == 5:
+        elif len(id) == 5:
+            print('id length is 5')
             xPart = id[:-2] + 'nnn'
         else:
+            print('in else and id length is: %s ' % len(id))
             xPart = id[:-3] + 'nnn'
-        #print('xPart: %s' % xPart)
+        print('xPart: %s' % xPart)
         url = ftpUrlTemplate.replace('~x~', xPart)
         url = url.replace('~id~', id)
         file = ftpFileTemplate.replace('~id~', id)
