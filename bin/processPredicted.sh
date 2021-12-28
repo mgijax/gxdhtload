@@ -47,22 +47,46 @@ LOG=${LOG_EXPERIMENT}
 rm -rf ${LOG_EXPERIMENT}
 >>${LOG_EXPERIMENT}
 
-date >> ${LOG_EXPERIMENT} 2>&1
+#
+#  Source the DLA library functions.
+#
+
+if [ "${DLAJOBSTREAMFUNC}" != "" ]
+then
+    if [ -r ${DLAJOBSTREAMFUNC} ]
+    then
+        . ${DLAJOBSTREAMFUNC}
+    else
+        echo "Cannot source DLA functions script: ${DLAJOBSTREAMFUNC}" | tee -a ${LOG}
+        exit 1
+    fi
+else
+    echo "Environment variable DLAJOBSTREAMFUNC has not been defined." | tee -a ${LOG}
+    exit 1
+fi
+
+date | tee -a ${LOG_EXPERIMENT} 
 echo 'PYTHON', $PYTHON  >> ${LOG_EXPERIMENT} 2>&1
 echo 'PYTHONPATH', $PYTHONPATH  >> ${LOG_EXPERIMENT} 2>&1
 
-date >> ${LOG_EXPERIMENT} 2>&1
+date | tee -a ${LOG_EXPERIMENT}
 echo "Running makePredicted.py" >> ${LOG_EXPERIMENT} 2>&1
 ${PYTHON} makePredicted.py  >> ${LOG_EXPERIMENT} 2>&1
+STAT=$?
+checkStatus ${STAT} "${GXDHTLOAD}/bin/makePredicted.py"
 
-date >> ${LOG_EXPERIMENT} 2>&1
-echo "Running predict.py" >> ${LOG_EXPERIMENT} 2>&1
+date | tee -a ${LOG_EXPERIMENT}
+echo "Running predict.py" | tee -a ${LOG_EXPERIMENT} 
 rm -rf ${PREDICTED_EXPERIMENT}
 
 ${ANACONDAPYTHON} ${ANACONDAPYTHONLIB}/predict.py --sampledatalib ${ANACONDAPYTHONLIB}/htMLsample.py -m ${ANACONDAPYTHONLIB}/gxdhtclassifier.pkl -p removeURLs -p textTransform_all -p stem  ${NOT_EVALUATED_EXPERIMENT} > ${PREDICTED_EXPERIMENT}
+STAT=$?
+checkStatus ${STAT} "${GXDHTLOAD}/bin/predict.py"
 
-date >> ${LOG_EXPERIMENT} 2>&1
-echo "Running updatePredicted.py" >> ${LOG_EXPERIMENT} 2>&1
+date | tee -a ${LOG_EXPERIMENT}
+echo "Running updatePredicted.py" | tee -a ${LOG_EXPERIMENT} 
 ${PYTHON} updatePredicted.py  >> ${LOG_EXPERIMENT} 2>&1
+STAT=$?
+checkStatus ${STAT} "${GXDHTLOAD}/bin/updatePredicted.py"
 
 date >> ${LOG_EXPERIMENT} 2>&1
