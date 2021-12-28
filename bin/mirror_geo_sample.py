@@ -23,8 +23,8 @@ PAGE = reportlib.PAGE
 
 GEO_DOWNLOADS = os.getenv('GEO_DOWNLOADS')
 
-# the list of geo sample Ids from all the metadata files
-geoSampleIdList = []
+# the list of geo experiment Ids from all the metadata files
+geoExperimentIdList = []
 
 # plug GEO ids into this template to get the sample data files
 # example: ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE62nnn/GSE62608/miniml/GSE62608_family.xml.tgz
@@ -62,7 +62,7 @@ def parseAll():
 
 # parse a geo metadata file
 def parseFile(fpInFile):
-    global geoSampleIdList
+    global geoExperimentIdList
     expFound = 0
     gseId = ''
     line = str.lstrip(fpInFile.readline())
@@ -80,7 +80,7 @@ def parseFile(fpInFile):
             if line.find('<Accession') == 0:
                 id =  line.split('>')[1].split('<')[0]
                 if id.find('GSE') == 0:
-                    geoSampleIdList.append(id)
+                    geoExperimentIdList.append(id)
         line = fpInFile.readline()
         # don't strip if just newline so blank lines won't stop the loop
         if line != '\n':
@@ -89,7 +89,7 @@ def parseFile(fpInFile):
 
 # iterate thru the geo IDs fetching the family files from the ftp site
 def process():
-    for id in geoSampleIdList:
+    for id in geoExperimentIdList:
 
         # create url
         #print(id)
@@ -162,6 +162,6 @@ def process():
 
 ### main ###
 parseAll()
-print('Number GEO Ids to process: %s' % len(geoSampleIdList))
+print('Number GEO Ids to process: %s' % len(geoExperimentIdList))
 #print(geoIdList)
 process()
