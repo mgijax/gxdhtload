@@ -42,11 +42,10 @@ export FILEDIR ARCHIVEDIR LOGDIR RPTDIR OUTPUTDIR INPUTDIR
 
 QC_RPT=${RPTDIR}/geo_htload_qc.rpt
 EXP_PARSING_RPT=${RPTDIR}/geo_experiment_parsing.rpt
-EXP_IN_DB_PARSING_RPT=${RPTDIR}/geo_experiment_in_db_parsing.rpt
 SAMP_PARSING_RPT=${RPTDIR}/geo_sample_parsing.rpt
 SAMP_IN_DB_PARSING_RPT=${RPTDIR}/geo_sample_in_db_parsing.rpt
 
-export QC_RPT EXP_PARSING_RPT EXP_IN_DB_PARSING_RPT SAMP_PARSING_RPT SAMP_IN_DB_PARSING_RPT
+export QC_RPT EXP_PARSING_RPT SAMP_PARSING_RPT SAMP_IN_DB_PARSING_RPT
 
 # set to true if you want to run the parsing reports
 RUN_PARSING_RPTS=true
