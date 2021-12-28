@@ -18,7 +18,6 @@ import sys
 import types
 import re
 import Set
-import json
 import db
 import loadlib
 import accessionlib
@@ -313,18 +312,18 @@ def initialize():
     results = db.sql(''' select nextval('mgi_property_seq') as maxKey ''', 'auto')
     nextPropKey  = results[0]['maxKey']
 
-    # Create experiment ID lookup - we are looking at preferred = 1 or 2 because they
-    # can be either
+    # Create experiment ID lookup - we are looking at preferred = 1 or 2 
+    # because GEO ids can be either
     results = db.sql('''select accid, _Object_key
         from ACC_Accession
         where _MGIType_key = 42 -- GXD HT Experiment
         and _LogicalDB_key = 190 -- GEO Series''', 'auto')
     for r in results:
         primaryIdDict[r['accid']] = r['_Object_key']
-    print ('size of primaryIdDict: %s' % len(primaryIdDict))
+    #print ('size of primaryIdDict: %s' % len(primaryIdDict))
 
     # Create experiment ID lookup - we are looking at preferred = 1 or 2 
-    # beccause GEO Ids can be either
+    # because GEO Ids can be either
     results = db.sql('''select a.accid, a._object_key as _experiment_key
     from gxd_htexperiment h, acc_accession a
     where h._curationstate_key not in (20475420, 20475422)
@@ -334,7 +333,7 @@ def initialize():
     and a._logicaldb_key = 190 -- GEO, but we aren't selecting preferred, so we get primary AND secondary''', 'auto')
     for r in results:
         curatedGeoNoRawSampleDict[r['accid']] = r['_experiment_key']
-    print ('size of curatedGeoNoRawSampleDict: %s' % len(curatedGeoNoRawSampleDict))
+    #print ('size of curatedGeoNoRawSampleDict: %s' % len(curatedGeoNoRawSampleDict))
 
     # Create experiment type translation lookup
     results = db.sql('''select badname, _Object_key
@@ -424,7 +423,7 @@ def process(expFile):
         if event=='end' and elem.tag == 'DocumentSummary':
             expCount += 1
             skip = 0
-            print('\n\nexpID: %s' % expID)
+            #print('\n\nexpID: %s' % expID)
             allExptIdList.append(expID)
 
             #
@@ -440,7 +439,7 @@ def process(expFile):
                 propertyUpdateTemplate = "#====#%s%s%s#=#%s#=====#%s%s%s#==#%s#===#%s%s%s%s%s%s%s%s%s" % (TAB, propTypeKey, TAB, TAB, TAB, exptMgiTypeKey, TAB, TAB, TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT )
                 skip = 1
                 expIdsInDbSet.add(expID)
-                print('    expIdInDb skip')
+                #print('    expIdInDb skip')
 
                 # not all experiments have pubmed IDs in the database
                 # assigning empty list assures we pick up this case
@@ -455,7 +454,7 @@ def process(expFile):
 
                 # if we have new pubmed IDs, add them to the database
                 if newSet:
-                    print('found new pubmed ids: %s' % newSet)
+                    #print('found new pubmed ids: %s' % newSet)
 
                     # get next sequenceNum for this expt's pubmed ID
                     # in the database
@@ -480,7 +479,7 @@ def process(expFile):
                         fpPropertyBcp.write(toLoad)
                         nextPropKey += 1
 
-                # if there is no raw sample data for this existing sample, add it
+                # if there's no raw sample data for the existing experiment, add it
                 if expID in curatedGeoNoRawSampleDict:
                    ret =  processSamples(expID, 'true') # a list of sample info
 
@@ -489,7 +488,7 @@ def process(expFile):
                    if ret == 1 or ret == 2:
                         print('expt inDb returnCode for %s: %s' % (expID, ret))
                    else:
-                        print('expt inDb adding samples for key: %s expID: %s sampleInfo:%s' % (updateExpKey, expID, ret))
+                        #print('expt inDb adding samples for key: %s expID: %s sampleInfo:%s' % (updateExpKey, expID, ret))
                         expIdsInDbNoSamplesSet.add(expID)
                         #
                         # GXD_HTRawSample and MGI_KeyValue BCP for 
@@ -505,7 +504,7 @@ def process(expFile):
                     # expts whose type doesn't translate and is not already in the db
                     expSkippedNotInDbNoTransSet.add(expID)
                     skip = 1
-                    print('    expIdNotInDbNoTrans skip')
+                    #print('    expIdNotInDbNoTrans skip')
 
             if skip != 1 and isSuperSeries == 'yes':
                 # number of superseries not already caught because of un translated
@@ -611,13 +610,6 @@ def process(expFile):
                         fpPropertyBcp.write(toLoad)
                         nextPropKey += 1
 
-
-                    #if description != '':
-                    #    toLoad = propertyTemplate.replace('#=#', str(descriptionPropKey)).replace('#==#', str(description)).replace('#===#', '1').replace('#====#', str(nextPropKey))
-                    #    fpPropertyBcp.write(toLoad)
-                    #    nextPropKey += 1
-
-                    
                     #
                     # GXD_HTRawSample and MGI_KeyValue BCP
                     #
@@ -754,7 +746,6 @@ def processSamples(expID, inDb): # inDb 'true' or 'false'
     #
     # Parse the sample file
     #
-    #try:
     for event, elem in context:
         if event == 'start':
             level += 1
@@ -791,17 +782,17 @@ def processSamples(expID, inDb): # inDb 'true' or 'false'
             #
             # reset all attributes
             #
-            sampleID = ''
-            description =  ''
-            title = ''
-            sType = ''
-            molecule = ''
-            taxid = ''
-            taxidValue = ''
-            treatmentProt = ''
-            overallDesign = ''
-            channelDict = {}
-            channelList = []
+                sampleID = ''
+                description =  ''
+                title = ''
+                sType = ''
+                molecule = ''
+                taxid = ''
+                taxidValue = ''
+                treatmentProt = ''
+                overallDesign = ''
+                channelDict = {}
+                channelList = []
 
         #
         # Tag Level 2
@@ -891,8 +882,6 @@ def processSamples(expID, inDb): # inDb 'true' or 'false'
                 molecule = elem.text
                 if molecule is not None and molecule != '':
                         channelDict['molecule'] = str.strip(molecule)
-    #except: # there was a parsing error
-    #    return 2
 
     return sampleList
 
