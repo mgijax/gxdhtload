@@ -41,7 +41,11 @@ outputDir = os.getenv('OUTPUTDIR')
 updateSql = '''update gxd_htexperiment set _evaluationstate_key = %s, confidence = %s where _experiment_key = %s;\n'''
 allUpdateSql = ''
 
-inFile = open(os.getenv('PREDICTED_EXPERIMENT'), 'r')
+try:
+    inFile = open(os.getenv('PREDICTED_EXPERIMENT'), 'r')
+except:
+    print('No file to process')
+    sys.exit(0)
 lineNum = 0
 for line in inFile.readlines():
 
@@ -65,6 +69,14 @@ for line in inFile.readlines():
 
 inFile.close()
 print(allUpdateSql)
-# run the gxd_experiment update statements
-db.sql(allUpdateSql, None)
-db.commit()
+
+if allUpdateSql != '':
+    try:
+        # run the gxd_experiment update statements
+        db.sql(allUpdateSql, None)
+    except:
+        print('Error processing updates')
+        sys.exit(1)
+
+    db.commit()
+sys.exit(0)
