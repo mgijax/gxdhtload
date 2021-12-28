@@ -68,7 +68,6 @@ for line in inFile.readlines():
         allUpdateSql += updateSql % (evalStateKey, confidence, exptKey)
 
 inFile.close()
-print(allUpdateSql)
 
 if allUpdateSql != '':
     try:
