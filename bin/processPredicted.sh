@@ -79,7 +79,7 @@ date | tee -a ${LOG_EXPERIMENT}
 echo "Running predict.py" | tee -a ${LOG_EXPERIMENT} 
 rm -rf ${PREDICTED_EXPERIMENT}
 
-${ANACONDAPYTHON} ${ANACONDAPYTHONLIB}/predict.py --sampledatalib ${ANACONDAPYTHONLIB}/htMLsample.py -m ${ANACONDAPYTHONLIB}/gxdhtclassifier.pkl -p removeURLs -p textTransform_all -p stem  ${NOT_EVALUATED_EXPERIMENT} > ${PREDICTED_EXPERIMENT}
+${ANACONDAPYTHON} ${ANACONDAPYTHONLIB}/predict.py --sampledatalib ${ANACONDAPYTHONLIB}/htMLsample.py -m ${ANACONDAPYTHONLIB}/gxdhtclassifier.pkl -p standard  ${NOT_EVALUATED_EXPERIMENT} > ${PREDICTED_EXPERIMENT}
 STAT=$?
 checkStatus ${STAT} "${GXDHTLOAD}/bin/predict.py"
 

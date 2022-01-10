@@ -1,3 +1,9 @@
+TAG: gxdhtload-6-0-18-4
+DATE: 01/10/2022
+STAFF: sc
+CHANGES: YAKS merge to trunk
+bin/processPredicted.sh - updated call to c predict.py
+
 TAG: gxdhtload-6-0-18-3
 TAG: gxdhtload-6-0-18-2
 TAG: gxdhtload-6-0-18-1
