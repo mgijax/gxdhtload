@@ -1,28 +1,43 @@
-<TITLE>GXD High Throughput ArrayExpress Load</TITLE>
+<TITLE>GXD High Throughput GEO Load</TITLE>
 
-<H1>GXD High Throughput ArrayExpress Load</H1>
+<H1>GXD High Throughput GEO Load</H1>
 
 See <A HREF="http://mgiwiki/mediawiki/index.php/sw:Gxdhtload">GXD High Throughput Load Wiki </A> for input file format, report descriptions, processing algorithms, etc.
 
 <H3>Input</H3>
 <UL>
-<LI><A HREF="/data/downloads/www.ebi.ac.uk/arrayexpress.json">ArrayExpress incremental file (last four years)</A>
-<LI><A HREF="/data/loads/mgi/gxdhtload/input/">GEO Files (for pubmed ID updates)</A>
+<LI><A HREF="/data/downloads/eutils.ncbi.nlm.nih.gov.geo/">GEO Input Directory </A>
+    <UL>
+    <LI> geo.xml.* - files of 5000 experiments
+    <LI> GSExxxxx_family.xml - files of samples for a given experiment
+    </UL>
+<LI><A HREF="/data/loads/mgi/geo_htload/input/">geo.uid.xml -- This is the file of GEO UIDs and meta data used to fetch the experiments </A>
 </UL>
 
-<H3>BCP Files</H3>
+<H3>Output Files</H3>
 <UL>
-<LI><A HREF="/data/loads/mgi/gxdhtload/output">BCP File directory</A> 
+<LI><A HREF="/data/loads/mgi/geo_htload/output">BCP File directory</A> 
+<LI><A HREF="/data/loads/mgi/geo_htload/output/notevaluated.experiment.txt">List of experiments in the DB that are not evaluated; used by the classifier</A>
+<LI><A HREF="/data/loads/mgi/geo_htload/output/predicted.experiment.txt">The classifier predictions; used to update the experiment predicted evaluation state and confidence </A>
 </UL>
 
 <H3>Logs</H3>
 <UL>
-<LI><A HREF="/data/loads/mgi/gxdhtload/logs/gxdhtload.proc.log">Process Log</A>
-<LI><A HREF="/data/loads/mgi/gxdhtload/logs/gxdhtload.diag.log">Diagnostic Log</A>
+<LI><A HREF="/data/loads/mgi/geo_htload/logs/mirror_geo.log"> Experiment Mirror Log</A>
+<LI><A HREF="/data/loads/mgi/geo_htload/logs/mirror_geo.log.sample"> Sample Mirror Log</A>
+<LI><A HREF="/data/loads/mgi/geo_htload/logs/geo_htload.proc.log">Process Log</A>
+<LI><A HREF="/data/loads/mgi/geo_htload/logs/geo_htload.diag.log">Diagnostic Log</A>
+<LI><A HREF="/data/loads/mgi/geo_htload/logs/predicted.log">Classifier Prediction Log</A>
 
 </UL>
 
 <H3>Reports</H3>
 <UL>
-<LI><A HREF="/data/loads/mgi/gxdhtload/reports/gxdhtload_qc.rpt">GXD HT Load QC Report</A>
+<LI><A HREF="/data/loads/mgi/geo_htload/reports/geo_htload_qc.rpt">GXD HT Load QC Report</A>
+    <LI>Parsing reports used during development, but could come in handy
+        <UL>
+        <LI> <A HREF="/data/loads/mgi/geo_htload/reports/geo_experiment_parsing.rpt">Experiment Parsing Report</A>
+        <LI><A HREF="/data/loads/mgi/geo_htload/reports/geo_sample_parsing.rpt">Sample Parsing Report</A>
+        <LI><A HREF="/data/loads/mgi/geo_htload/reports/geo_sample_in_db_parsing.rpt">Samples In Database Parsing Report</A>
+        </UL>
 </UL>
