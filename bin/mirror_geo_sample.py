@@ -13,6 +13,7 @@ import os
 import db
 import reportlib
 import subprocess
+import loadlib
 
 db.setTrace()
 
@@ -22,6 +23,8 @@ TAB = reportlib.TAB
 PAGE = reportlib.PAGE
 
 GEO_DOWNLOADS = os.getenv('GEO_DOWNLOADS')
+
+curLogName = os.getenv('MIRROR_LOG_CUR')
 
 # the list of geo experiment Ids from all the metadata files
 geoExperimentIdList = []
@@ -37,9 +40,14 @@ geoExperimentIdList = []
 ftpUrlTemplate = "ftp://ftp.ncbi.nlm.nih.gov/geo/series/~x~/~id~/miniml/~id~_family.xml.tgz"
 ftpFileTemplate = "~id~_family.xml.tgz"
 
-#
-# Main
-#
+def init():
+    global fpCurLogFile
+
+try:
+    fpCurLogFile = open(curLogName, 'w')
+    fpCurLogFile.write('%s%s%s' % (loadlib.loaddate, CRT, CRT))
+except:
+    print('Cannot create %s' % curLogName)
 
 #
 # Purpose: Loops through all metadata files sending them to parser
@@ -121,7 +129,16 @@ def process():
         stdout = result.stdout
         stderr = result.stderr
         statusCode = result.returncode
-        print('wget statusCode: %s stderr: %s' % (statusCode, stderr))
+
+        if statusCode != 0:
+            fpCurLogFile.write('Experiment sample file: %s%s%s' % (file, CRT, CRT))
+            fpCurLogFile.write('%s failed with exit code %s \nstderr %s' % (cmd, statusCode, stderr))
+            print('Skipping %s see %s' % (file, curLogName))
+
+            cmd = '/usr/bin/rm -f %s/%s ' % (GEO_DOWNLOADS, file)
+            print(cmd)
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+            continue
 
         # untar/unzip the file
         cmd = '/usr/bin/tar -xzvf %s/%s ' % (GEO_DOWNLOADS, file) 
@@ -130,7 +147,11 @@ def process():
         stdout = result.stdout
         stderr = result.stderr
         statusCode = result.returncode
-        print('tar statusCode: %s stderr: %s' % (statusCode, stderr))
+        if statusCode != 0:
+            fpCurLogFile.write('Experiment sample file: %s%s%s' % (file, CRT, CRT))
+            fpCurLogFile.write('%s failed with exit code %s stderr %s%s:' % (cmd, statusCode, stderr, CRT))
+            print('Skipping %s see %s' % (file, curLogName))
+            continue
 
 	# remove extraneous files from the tarball and the 
 	# *.tgz, GPL*, GSM*
@@ -140,28 +161,28 @@ def process():
         stdout = result.stdout
         stderr = result.stderr
         statusCode = result.returncode
-        print('rm statusCode: %s stderr: %s' % (statusCode, stderr))
-
+            
         cmd = '/usr/bin/rm -f %s/GPL* ' % (GEO_DOWNLOADS)
         print(cmd)
         result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
         stdout = result.stdout
         stderr = result.stderr
         statusCode = result.returncode
-        print('rm statusCode: %s stderr: %s' % (statusCode, stderr))
-
+            
         cmd = '/usr/bin/rm -f %s/GSM* ' % (GEO_DOWNLOADS)
         print(cmd)
         result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
         stdout = result.stdout
         stderr = result.stderr
         statusCode = result.returncode
-        print('rm statusCode: %s stderr: %s' % (statusCode, stderr))
-
+            
     return
 
 ### main ###
+init()
 parseAll()
 print('Number GEO Ids to process: %s' % len(geoExperimentIdList))
 #print(geoIdList)
 process()
+fpCurLogFile.write('%s%s%s' % (CRT, CRT, loadlib.loaddate))
+fpCurLogFile.close()
