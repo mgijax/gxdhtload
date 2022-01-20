@@ -117,8 +117,11 @@ GEO_RPT_FILE=${RPTDIR}/geoUpdate.rpt
 # mirror log file
 GEO_LOG_FILE=${LOGDIR}/mirror_geo.log
 
-export GEO_UID_FILE GEO_XML_FILE GEO_SAMPLE_FILE_SUFFIX GEO_RPT_FILE GEO_LOG_FILE
+# curator mirror log file - indicates when sample files cannot be downloaded
+MIRROR_LOG_CUR=${LOGDIR}/mirror_geo.cur.log
 
+export GEO_UID_FILE GEO_XML_FILE GEO_SAMPLE_FILE_SUFFIX GEO_RPT_FILE GEO_LOG_FILE
+export MIRROR_LOG_CUR
 #  Send debug messages to the diagnostic log (true or false)
 LOG_DEBUG=false
 
@@ -158,7 +161,9 @@ MAIL_LOADNAME="GEO HT load"
 #  Recipient list for mailing the log files (comma-separated)
 MAIL_LOG_PROC=""
 
-export MAIL_LOADNAME MAIL_LOG_PROC
+MAIL_LOG_CUR="sharon.giannatto@jax.org constance.smith@jax.org,sharon.giannatto@jax.org"
+
+export MAIL_LOADNAME MAIL_LOG_PROC MAIL_LOG_CUR
 
 INSTALLDIR=${GXDHTLOAD}
 
