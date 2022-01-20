@@ -76,6 +76,8 @@ LOG=${GEO_LOG_FILE}
 rm -rf ${LOG}
 touch ${LOG}
 
+date | tee -a ${LOG}
+
 #
 # Create the download directory if it doesn't exist.
 #
@@ -93,8 +95,19 @@ reldate=${EXPT_DOWNLOAD_DAYS}
 if [ -z ${reldate} ]
 then
     wget  -a ${LOG} -O $GEO_UID_FILE "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=gds&term=GSE[ETYP]+AND+Mus[ORGN]&retmax=300000&usehistory=y&datetype=pdat"
+    STAT=$?
+    echo "STAT: ${STAT}"
+
 else
     wget  -a ${LOG} -O $GEO_UID_FILE "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=gds&term=GSE[ETYP]+AND+Mus[ORGN]&reldate=${reldate}&retmax=300000&usehistory=y&datetype=pdat"
+    STAT=$?
+    echo "STAT: ${STAT}"
+fi
+
+if [ $STAT -ne 0 ]
+then
+    echo "Fetching IUD file failed with exit code: $STAT" 
+    exit 1
 fi
 
 QUERY_KEY=`cat ${GEO_UID_FILE} | grep '<QueryKey>' | cut -d'>' -f8 | cut -d'<' -f1`
@@ -121,7 +134,7 @@ retrieve_start=0
 rm -f ${GEO_DOWNLOADS_ARCHIVE}/${EXPT_XML_FILE}.*
 
 # then move the last processed files to the archive directory
-mv ${GEO_DOWNLOADS}/${EXPT_XML_FILE}.* ${GEO_DOWNLOADS_ARCHIVE}
+mv -f ${GEO_DOWNLOADS}/${EXPT_XML_FILE}.* ${GEO_DOWNLOADS_ARCHIVE}
 
 # Loop grabbing retrieve_max experiments at a time
 while [ $retrieve_start -lt $GEO_COUNT ]
@@ -137,5 +150,10 @@ done
 ALL_FILES=`ls ${GEO_DOWNLOADS}/geo.xml.*`
 export ALL_FILES
 
+# first write to LOG_CUR
+date | tee ${LOG_CUR} 
+date | tee -a ${LOG}
+echo "Running ./mirror_geo_sample.sh" | tee -a ${LOG}
 # Now mirror the samples
 ./mirror_geo_sample.sh
+date  | tee -a ${LOG_CUR} ${LOG}
