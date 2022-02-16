@@ -20,7 +20,7 @@ fi
 #
 # Initialize the log file.
 #
-LOG="${GEO_LOG_FILE}.sample"
+LOG="${GEO_MIRROR_LOG_FILE}.sample"
 rm -rf ${LOG}
 touch ${LOG}
 
