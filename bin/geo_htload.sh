@@ -125,6 +125,9 @@ fi
 preload #${OUTPUTDIR}
 
 # get the listing of experiment files
+# for debug, process just one file
+#EXP_FILES=`ls ${GEO_DOWNLOADS}/geo.xml.10`
+
 EXP_FILES=`ls ${GEO_DOWNLOADS}/geo.xml.*`
 export EXP_FILES
 
@@ -136,7 +139,7 @@ ${PYTHON} ${GXDHTLOAD}/bin/geo_htload.py >> ${LOG_DIAG}
 STAT=$?
 checkStatus ${STAT} "${GXDHTLOAD}/bin/geo_htload.py"
 
-echo 'Running procesPredicted.sh'  | tee -a ${LOG_DIAG}
+echo 'Running processPredicted.sh'  | tee -a ${LOG_DIAG}
 ${GXDHTLOAD}/bin/processPredicted.sh >> ${LOG_DIAG}
 STAT=$?
 checkStatus ${STAT} "${GXDHTLOAD}/bin/processPredicted.sh"
