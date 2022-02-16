@@ -364,7 +364,7 @@ def initialize():
 
     db.useOneConnection(0)
     
-    return
+    return 0
 
 #
 # Purpose: Loops through all experiment files sending them to parser
@@ -381,9 +381,9 @@ def processAll():
         fpSampParsingFile.write('expID%ssampleID%sdescription%stitle%ssType%schannelInfo%s' % (TAB, TAB, TAB, TAB, TAB, CRT))
         fpSampInDbParsingFile.write('expID%ssampleID%sdescription%stitle%ssType%schannelInfo%s' % (TAB, TAB, TAB, TAB, TAB, CRT))
     for expFile in str.split(os.environ['EXP_FILES']):
-        process(expFile)
+        rc = process(expFile)
 
-    return
+    return rc
 
 #
 # Purpose: parse input file, QC, create bcp files
@@ -394,30 +394,31 @@ def processAll():
 #
 
 def process(expFile):
-    global expCount, exptLoadedCount, updateExptCount, updateExptList
-    global nextExptKey, nextAccKey, nextExptVarKey, nextPropKey
-    global expSkippedNotInDbTransIsSuperseriesSet, expSkippedNoSampleList
-    global expIdsInDbSet, expLoadedNoSampleList, expIdsInDbNoSamplesSet
-    global expSkippedNotInDbNoTransSet, expSkippedMaxSamplesSet
+  global expCount, exptLoadedCount, updateExptCount, updateExptList
+  global nextExptKey, nextAccKey, nextExptVarKey, nextPropKey
+  global expSkippedNotInDbTransIsSuperseriesSet, expSkippedNoSampleList
+  global expIdsInDbSet, expLoadedNoSampleList, expIdsInDbNoSamplesSet
+  global expSkippedNotInDbNoTransSet, expSkippedMaxSamplesSet
 
-    f = open(expFile, encoding='utf-8', errors='replace')   
-    context = ET.iterparse(f, events=("start","end"))
-    context = iter(context)
+  f = open(expFile, encoding='utf-8', errors='replace')   
+  context = ET.iterparse(f, events=("start","end"))
+  context = iter(context)
     
-    level = 0
-    expID = ''
-    title = ''
-    summary = ''
-    pdat = ''
-    gdsType = ''
-    exptType = ''
-    n_samples = ''
-    pubmedList = []
-    sampleList = [] # list of samplIDs
+  level = 0
+  expID = ''
+  title = ''
+  summary = ''
+  pdat = ''
+  gdsType = ''
+  exptType = ''
+  n_samples = ''
+  pubmedList = []
+  sampleList = [] # list of samplIDs
 
-    isSuperSeries = 'no'   # flag to indicate expt is superseries, skip
-    exptTypeKey = 0        # if 0 chosen gdstype did not translate, skip
-    isTpr = 0
+  isSuperSeries = 'no'   # flag to indicate expt is superseries, skip
+  exptTypeKey = 0        # if 0 chosen gdstype did not translate, skip
+  isTpr = 0
+  try:
     for event, elem in context:
         # end of a record - reset everything
         if event=='end' and elem.tag == 'DocumentSummary':
@@ -660,8 +661,10 @@ def process(expFile):
             level -= 1
     
     elem.clear()
-
-    return
+  except:
+    print('Parsing error: on %s' % expFile)
+    return 1  
+  return 0
 
 #
 # Purpose: looks a the list of expt types and determines if
@@ -1017,7 +1020,7 @@ def processSampleBcp(sampleList, # list of samples for current experiment
         # increment the sample key, multiple samples/experiment
         nextRawSampleKey += 1
 
-    return
+    return 0
 
 #
 # Purpose: writes out QC to the QC file
@@ -1084,7 +1087,7 @@ def writeQC():
     for type in sortedSet:
         fpQcFile.write('    %s%s' %  (type, CRT))
 
-    return
+    return 0
 
 #
 # Purpose: executes bcp
@@ -1174,13 +1177,29 @@ def closeFiles():
     fpVariableBcp.close()
     fpPropertyBcp.close()
 
-    return
+    return 0
 #
 # main
 #
 
-initialize()
-processAll()
-writeQC()
-closeFiles()
-doBCP()
+if initialize() != 0:
+    print("geo_htload failed initializing")
+    sys.exit(1)
+
+if processAll() != 0:
+    print("geo_htload failed during processing")
+    closeFiles()
+    sys.exit(1)
+
+if writeQC() != 0:
+    print("geo_htload failed writing QC")
+    closeFiles()
+    sys.exit(1)
+
+if closeFiles() != 0:
+    print("geo_htload failed closing files")
+    sys.exit(1)
+
+if doBCP() != 0:
+   print("geo_htload failed doing BCP")
+   sys.exit(1)
