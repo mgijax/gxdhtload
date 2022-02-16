@@ -1,4 +1,9 @@
 TAG: gxdhtload-6-0-18-5
+DATE: 02/16/2022
+STAFF: sc
+CHANGES: wts2-795 GEO gxdhtmpload failure
+
+TAG: gxdhtload-6-0-18-5
 DATE: 01/20/2022
 STAFF: sc
 CHANGES: YAKS build - add more error checking for sample downloads
