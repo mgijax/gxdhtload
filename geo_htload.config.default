@@ -115,12 +115,12 @@ GEO_SAMPLE_FILE_SUFFIX='_family.xml'
 GEO_RPT_FILE=${RPTDIR}/geoUpdate.rpt
 
 # mirror log file
-GEO_LOG_FILE=${LOGDIR}/mirror_geo.log
+GEO_MIRROR_LOG_FILE=${LOGDIR}/mirror_geo.log
 
 # curator mirror log file - indicates when sample files cannot be downloaded
 MIRROR_LOG_CUR=${LOGDIR}/mirror_geo.cur.log
 
-export GEO_UID_FILE GEO_XML_FILE GEO_SAMPLE_FILE_SUFFIX GEO_RPT_FILE GEO_LOG_FILE
+export GEO_UID_FILE GEO_XML_FILE GEO_SAMPLE_FILE_SUFFIX GEO_RPT_FILE GEO_MIRROR_LOG_FILE
 export MIRROR_LOG_CUR
 #  Send debug messages to the diagnostic log (true or false)
 LOG_DEBUG=false
@@ -159,9 +159,9 @@ export NOT_EVALUATED_EXPERIMENT PREDICTED_EXPERIMENT LOG_EXPERIMENT
 MAIL_LOADNAME="GEO HT load"
 
 #  Recipient list for mailing the log files (comma-separated)
-MAIL_LOG_PROC=""
+MAIL_LOG_PROC="mgiadmin"
 
-MAIL_LOG_CUR="sharon.giannatto@jax.org constance.smith@jax.org,sharon.giannatto@jax.org"
+MAIL_LOG_CUR="constance.smith@jax.org,sharon.giannatto@jax.org"
 
 export MAIL_LOADNAME MAIL_LOG_PROC MAIL_LOG_CUR
 
