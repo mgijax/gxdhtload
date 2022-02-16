@@ -72,10 +72,13 @@ fi
 #
 # Initialize the log file.
 #
-LOG=${GEO_LOG_FILE}
+LOG=${GEO_MIRROR_LOG_FILE}
 rm -rf ${LOG}
 touch ${LOG}
 
+#CUR_LOG=${MIRROR_LOG_CUR}
+rm -rf ${CUR_LOG}
+date | tee ${MIRROR_LOG_CUR}
 date | tee -a ${LOG}
 
 #
@@ -143,17 +146,22 @@ do
     echo "retrieve_start: $retrieve_start"
 
     wget -a ${LOG} -O ${GEO_XML_FILE}.${fileCount} "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=gds&version=2.0&query_key=${QUERY_KEY}&WebEnv=${WEB_ENV}&retstart=$retrieve_start&retmax=$retrieve_max&api_key=${EUTILS_API_KEY}"
+    error=`cat ${GEO_XML_FILE}.${fileCount}  | grep 'WWW Error 500 Diagnostic'` 
+    if [ "$error" !=  "" ]
+    then
+        echo $error
+        echo "${GEO_XML_FILE}.${fileCount}: $error" >> ${LOG}
+    fi
     fileCount=`expr $fileCount + 1`
     retrieve_start=`expr $retrieve_start + $retrieve_max`
 done
 
 ALL_FILES=`ls ${GEO_DOWNLOADS}/geo.xml.*`
 export ALL_FILES
+echo "ALL_FILES in mirror_geo_exp.sh: $ALL_FILES"
 
-# first write to LOG_CUR
-date | tee ${LOG_CUR} 
 date | tee -a ${LOG}
 echo "Running ./mirror_geo_sample.sh" | tee -a ${LOG}
 # Now mirror the samples
 ./mirror_geo_sample.sh
-date  | tee -a ${LOG_CUR} ${LOG}
+date  | tee -a ${MIRROR_LOG_CUR} ${LOG}
