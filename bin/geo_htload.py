@@ -64,7 +64,7 @@ exptVariableTermKey = 20475439
 
 # For GXD_HTExperiment:
 # 'Not Evaluated' from 'GXD HT Evaluation State' (vocab key = 116) 
-evalStateTermKey = 20225941 
+evalStateTermKey = 100079348
 
 # 'Not Done' from GXD HT Curation State' (vocab key=117)
 curStateTermKey = 20475422
