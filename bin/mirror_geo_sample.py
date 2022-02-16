@@ -44,7 +44,7 @@ def init():
     global fpCurLogFile
 
 try:
-    fpCurLogFile = open(curLogName, 'w')
+    fpCurLogFile = open(curLogName, 'a')  # append as this is started in mirror_geo_exp.sh
     fpCurLogFile.write('%s%s%s' % (loadlib.loaddate, CRT, CRT))
 except:
     print('Cannot create %s' % curLogName)
@@ -185,4 +185,4 @@ print('Number GEO Ids to process: %s' % len(geoExperimentIdList))
 #print(geoIdList)
 process()
 fpCurLogFile.write('%s%s%s' % (CRT, CRT, loadlib.loaddate))
-fpCurLogFile.close()
+fpCurLogFile.flush() 
