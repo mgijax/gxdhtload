@@ -9,7 +9,7 @@
 #
 #  Purpose:
 #
-#  1. makePredicted.py - select experiments where evaluation state = "Not Evaluated" (20225941)
+#  1. makePredicted.py - select experiments where evaluation state = "Not Evaluated" (100079348)
 #
 #  2.  predict.py (lib/python_anaconda)
 #           . using NOT_EVALUATED_EXPERIMENT, process the predictions (PREDICTED_EXPERIMENT)

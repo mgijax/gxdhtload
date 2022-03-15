@@ -103,7 +103,7 @@ def loadTmpTable():
                 (a._object_key = e._experiment_key and a._mgitype_key = 42
                 and a._logicaldb_key = 190) -- GEO series
         where
-        e._evaluationstate_key = 20225941 -- 'Not Evaluated'
+        e._evaluationstate_key = 100079348 -- 'Not Evaluated'
         """ % (GEO_TMPTBL),
         """
         create index tmp_idx1 on %s(_experiment_key)
