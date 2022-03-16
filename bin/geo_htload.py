@@ -352,8 +352,18 @@ def initialize():
         and a.preferred = 1
         and e._Experiment_key = p._Object_key
         and p._PropertyTerm_key = %s
+        and p._PropertyType_key = %s
+        union all
+        select a.accid, p.value
+        from GXD_HTExperiment e, ACC_Accession a, MGI_Property p
+        where e._Experiment_key = a._Object_key
+        and a._MGIType_key = %s
+        and a._LogicalDB_key = %s
+        and a.preferred = 0
+        and e._Experiment_key = p._Object_key
+        and p._PropertyTerm_key = %s
         and p._PropertyType_key = %s''' % \
-            (exptMgiTypeKey, geoLdbKey, pubmedPropKey, propTypeKey), 'auto')
+            (exptMgiTypeKey, geoLdbKey, pubmedPropKey, propTypeKey, exptMgiTypeKey, geoLdbKey, pubmedPropKey, propTypeKey), 'auto')
 
     for r in results:
         accid = r['accid'] 
