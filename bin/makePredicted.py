@@ -84,7 +84,6 @@ args = getArgs()
 
 #-----------------------------------
 GEO_TMPTBL = 'tmp_geoexp' # name of tmp table w/ the uneval'ed GEO experiments
-
 def loadTmpTable():
     '''
     Select the appropriate HT experiments to be used and put them in the
@@ -94,22 +93,23 @@ def loadTmpTable():
         title
         description
     '''
-    # Populate GEO_TMPTBL: unevaluated GEO experiments
-    q = ["""
-        create temporary table %s as
-        select e._experiment_key, a.accid as ID, e.name as title, e.description
-        from gxd_htexperiment e
-            join acc_accession a on
-                (a._object_key = e._experiment_key and a._mgitype_key = 42
-                and a._logicaldb_key = 190) -- GEO series
-        where
-        e._evaluationstate_key = 100079348 -- 'Not Evaluated'
-        """ % (GEO_TMPTBL),
-        """
-        create index tmp_idx1 on %s(_experiment_key)
-        """ % (GEO_TMPTBL),
-        ]
-    results = db.sql(q, 'auto')
+    db.sql('''select e._experiment_key, a.accid as ID, 
+        e.name as title, e.description
+        into temporary table notEval1
+        from gxd_htexperiment e, acc_accession a
+        where a._object_key = e._experiment_key 
+        and a._mgitype_key = 42
+        and a._logicaldb_key = 190 -- GEO series
+        and e._evaluationstate_key = 100079348 -- 'Not Evaluated' ''', None)
+
+    db.sql('''create index idx1 on notEval1(_experiment_key)''', None)
+
+    db.sql('''select e.*
+        into temporary table %s 
+        from notEval1 e
+        where not exists  (select 1
+        from gxd_htrawsample s
+        where e._experiment_key = s._experiment_key)''' % (GEO_TMPTBL), None)
 #-----------------------------------
 
 def main():
