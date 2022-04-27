@@ -104,12 +104,10 @@ def loadTmpTable():
 
     db.sql('''create index idx1 on notEval1(_experiment_key)''', None)
 
-    db.sql('''select e.*
+    db.sql('''select distinct e.*
         into temporary table %s 
-        from notEval1 e
-        where not exists  (select 1
-        from gxd_htrawsample s
-        where e._experiment_key = s._experiment_key)''' % (GEO_TMPTBL), None)
+        from notEval1 e, gxd_htrawsample s
+        where e._experiment_key = s._experiment_key''' % (GEO_TMPTBL), None)
 #-----------------------------------
 
 def main():
