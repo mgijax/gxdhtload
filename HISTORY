@@ -1,3 +1,8 @@
+TAG: gxdhtload-6-0-19-3
+DATE: 05/03/2022
+STAFF: sc
+CHANGES: wts2-860 'Modify GXD HT GEO load to bring in samples for experiments lacking them'
+
 TAG: gxdhtload-6-0-19-2
 TAG: gxdhtload-6-0-19-1
 DATE: 04/25/2022

@@ -189,8 +189,8 @@ expIdsInDbSet = set()
 # experiment ids in db, samples updated
 expIdsInDbNoSamplesSet = set()
 
-# curated geo IDs in the database w/o raw samples
-curatedGeoNoRawSampleDict = {}
+# geo experiment IDs in the database w/o raw samples
+geoNoRawSampleDict = {}
 
 # experiment types skipped because not in translation
 expTypesSkippedSet = set()
@@ -231,7 +231,7 @@ def initialize():
     global fpExperimentBcp, fpSampleBcp, fpKeyValueBcp, pubMedByExptDict
     global fpAccBcp, fpVariableBcp, fpPropertyBcp, nextExptKey
     global nextAccKey, nextExptVarKey, nextPropKey, primaryIdDict
-    global nextRawSampleKey, nextKeyValueKey, curatedGeoNoRawSampleDict
+    global nextRawSampleKey, nextKeyValueKey, geoNoRawSampleDict
 
     # create file descriptors
     try:
@@ -320,20 +320,25 @@ def initialize():
         and _LogicalDB_key = 190 -- GEO Series''', 'auto')
     for r in results:
         primaryIdDict[r['accid']] = r['_Object_key']
-    #print ('size of primaryIdDict: %s' % len(primaryIdDict))
 
     # Create experiment ID lookup - we are looking at preferred = 1 or 2 
     # because GEO Ids can be either
-    results = db.sql('''select a.accid, a._object_key as _experiment_key
-    from gxd_htexperiment h, acc_accession a
-    where h._curationstate_key not in (20475420, 20475422)
-    and h._evaluationstate_key not in (20225941, 20225943)
-    and h._experiment_key = a._object_key
-    and a._mgitype_key = 42 -- GXD HT Experiment
-    and a._logicaldb_key = 190 -- GEO, but we aren't selecting preferred, so we get primary AND secondary''', 'auto')
+    db.sql('''select a.accid, a._object_key as _experiment_key
+        into temporary table geo
+        from gxd_htexperiment e, acc_accession a
+        where e._experiment_key = a._object_key
+        and a._logicaldb_key = 190 
+        and a._mgitype_key = 42''', None)
+
+    db.sql('''create index idx1 on geo(_experiment_key)''', None)
+    results = db.sql('''select e.*
+        from geo e
+        where not exists  (select 1
+        from gxd_htrawsample s
+        where e._experiment_key = s._experiment_key)''', 'auto')
+
     for r in results:
-        curatedGeoNoRawSampleDict[r['accid']] = r['_experiment_key']
-    #print ('size of curatedGeoNoRawSampleDict: %s' % len(curatedGeoNoRawSampleDict))
+        geoNoRawSampleDict[r['accid']] = r['_experiment_key']
 
     # Create experiment type translation lookup
     results = db.sql('''select badname, _Object_key
@@ -440,7 +445,7 @@ def process(expFile):
             #
             # Experiment is in the database
             # add new pubmed ids
-            # add raw sample data to those curated experiments that do not have it
+            # add raw sample data to those experiments that do not have it
             #
             if expID in primaryIdDict:
                 updateExpKey = primaryIdDict[expID]
@@ -491,7 +496,7 @@ def process(expFile):
                         nextPropKey += 1
 
                 # if there's no raw sample data for the existing experiment, add it
-                if expID in curatedGeoNoRawSampleDict:
+                if expID in geoNoRawSampleDict:
                    ret =  processSamples(expID, 'true') # a list of sample info
 
                    #  means there was no sample file or 2 means there was 
@@ -503,7 +508,7 @@ def process(expFile):
                         expIdsInDbNoSamplesSet.add(expID)
                         #
                         # GXD_HTRawSample and MGI_KeyValue BCP for 
-                        # curated experiments (no raw sample data)
+                        # experiments with no raw sample data
                         #
                         processSampleBcp(ret, updateExpKey)
 
@@ -1051,7 +1056,7 @@ def writeQC():
     fpQcFile.write('Number of experiments loaded: %s%s%s' % \
         (exptLoadedCount, CRT, CRT))
 
-    fpQcFile.write('Number of samples loaded including samples for curated experiments: %s%s%s' % \
+    fpQcFile.write('Number of samples loaded including samples for experiments already in db: %s%s%s' % \
         (sampleLoadedCount, CRT, CRT))
 
     fpQcFile.write('Number experiments, already in DB: %s%s' %\
