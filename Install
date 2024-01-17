@@ -4,6 +4,7 @@
 # Installation script
 #
 # 1) cp geo_htload.config.default geo_htload.config
+# 2) cp ae_htload.config.default ae_htload.config
 # 3) Install 
 #
 
@@ -32,16 +33,16 @@ fi
 #
 cd `dirname $0`
 
-# establish the config files
-MAIN_CONFIG=geo_htload.config
+# establish the config file
+GEO_CONFIG=geo_htload.config
 
 # Make sure config file exists and source it
-if [ -r ${MAIN_CONFIG} ]
+if [ -r ${GEO_CONFIG} ]
 then
-    echo "Source ${MAIN_CONFIG}"
-    . ${MAIN_CONFIG}
+    echo "Source ${GEO_CONFIG}"
+    . ${GEO_CONFIG}
 else
-    echo "Cannot source configuration file: ${MAIN_CONFIG}"
+    echo "Cannot source configuration file: ${GEO_CONFIG}"
     installFailed
 fi
 
@@ -54,7 +55,7 @@ then
 fi
 
 #
-# run DLAInstall for each configuration file
+# run DLAInstall for GEO
 #
 echo 'running DLAINSTALL'
 ${DLAINSTALL} ${DEV}
@@ -67,8 +68,38 @@ then
     mkdir -p ${INPUTDIR}
 fi
 
-# create the experiment files archive if it doesn't exist
-if [ ! -d ${GEO_DOWNLOADS_ARCHIVE} ]
+# establish the config file
+AE_CONFIG=ae_htload.config
+
+# Make sure config file exists and source it
+if [ -r ${AE_CONFIG} ]
 then
-    mkdir -p ${GEO_DOWNLOADS_ARCHIVE}
+    echo "Source ${AE_CONFIG}"
+    . ${AE_CONFIG}
+else
+    echo "Cannot source configuration file: ${AE_CONFIG}"
+    installFailed
 fi
+
+# Check to see if this is a development installation
+#
+DEV=""
+if [ "${INSTALL_TYPE}" = "dev" ]
+then
+    DEV="-d"
+fi
+
+#
+# run DLAInstall for AE 
+#
+echo 'running DLAINSTALL'
+${DLAINSTALL} ${DEV}
+
+#
+# Create the input directory if it doesn't exist.
+#
+if [ ! -d ${INPUTDIR} ]
+then
+    mkdir -p ${INPUTDIR}
+fi
+
