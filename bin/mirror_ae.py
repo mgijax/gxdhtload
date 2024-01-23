@@ -20,7 +20,7 @@ TAB = reportlib.TAB
 S = '%s'
 
 inputDir = os.getenv('INPUTDIR')
-inputFile =  os.getenv('INPUT_FILE')
+inputFile =  os.getenv('INPUT_FILE_DEFAULT')
 
 #
 # Create the path and file templates
@@ -55,11 +55,9 @@ def init():
 
     fpIn = open(inputFile, 'r')
 
-    for id in fpIn.readlines():
-        id = str.strip(id)
-        if id == '' or id == '#':
-            continue
-        expIdList.append(id)
+    for line in fpIn.readlines():
+        (exptID, action) = list(map(str.strip, str.split(line, TAB)))[:2]
+        expIdList.append(exptID)
 
     return
 
