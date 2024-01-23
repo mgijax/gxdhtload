@@ -1,0 +1,133 @@
+#format: sh
+#
+#  ae_htload.config
+#
+#  This file sets up environment variables that are needed  for the ae_htload
+#
+###########################################################################
+
+###########################################################################
+#
+#  GENERAL SETTINGS
+#
+###########################################################################
+
+#
+#  If the MGICONFIG environment variable does not have a local override,
+#  use the default "live" settings.
+#
+if [ "${MGICONFIG}" = "" ]
+then
+    MGICONFIG=/usr/local/mgi/live/mgiconfig
+    export MGICONFIG
+fi
+
+. ${MGICONFIG}/master.config.sh
+
+###########################################################################
+#
+#  LOAD SPECIFIC SETTINGS
+#
+###########################################################################
+
+#  Path name of the archive, logs, reports and output directories
+FILEDIR=${DATALOADSOUTPUT}/mgi/ae_htload
+ARCHIVEDIR=${FILEDIR}/archive
+LOGDIR=${FILEDIR}/logs
+RPTDIR=${FILEDIR}/reports
+OUTPUTDIR=${FILEDIR}/output
+INPUTDIR=${FILEDIR}/input
+
+export FILEDIR ARCHIVEDIR LOGDIR RPTDIR OUTPUTDIR INPUTDIR
+
+INPUT_FILE_DEFAULT=${INPUTDIR}/experiment.txt
+MIRROR_LOG_FILE=${LOGDIR}/mirror_ae.log
+
+export INPUT_FILE_DEFAULT MIRROR_LOG_FILE
+
+BASE_EXP_URL="https://www.ebi.ac.uk/biostudies/api/v1/studies/"
+BASE_SAMP_URL="https://www.ebi.ac.uk/biostudies/files/"
+
+export BASE_EXP_URL BASE_SAMP_URL
+
+QC_RPT=${RPTDIR}/ae_htload_qc.rpt
+QC_LOGFILE=${LOGDIR}/exptQC.log
+EXP_PARSING_RPT=${RPTDIR}/ae_experiment_parsing.rpt
+SAMP_PARSING_RPT=${RPTDIR}/ae_sample_parsing.rpt
+SAMP_IN_DB_PARSING_RPT=${RPTDIR}/ae_sample_in_db_parsing.rpt
+
+export QC_RPT QC_LOGFILE EXP_PARSING_RPT SAMP_PARSING_RPT SAMP_IN_DB_PARSING_RPT
+
+# comma separated list of experiment id prefixes
+EXPT_PREFIXES='E-MTAB-'
+
+export EXPT_PREFIXES
+
+# set to true if you want to run the parsing reports
+RUN_PARSING_RPTS=true
+
+# max number of samples to load, if greater, skip experiment
+MAX_SAMPLES=1000
+
+export RUN_PARSING_RPTS MAX_SAMPLES
+
+# set to true if you want to load samples for curated AE experiments
+LOAD_SAMPLES_FOR_CURATED_AE=true
+
+export LOAD_SAMPLES_FOR_CURATED_AE
+
+# BCP file names
+EXPERIMENT_FILENAME=GXD_HTExperiment.bcp
+ACC_FILENAME=ACC_Accession.bcp
+VARIABLE_FILENAME=GXD_HTExperimentVariable.bcp
+PROPERTY_FILENAME=MGI_Property.bcp
+SAMPLE_FILENAME=GXD_HTRawSample.bcp
+KEYVALUE_FILENAME=MGI_KeyValue.bcp
+
+export EXPERIMENT_FILENAME ACC_FILENAME VARIABLE_FILENAME PROPERTY_FILENAME
+export SAMPLE_FILENAME KEYVALUE_FILENAME
+
+#  Complete path name of the log files
+LOG_FILE=${LOGDIR}/ae_htload.log
+LOG_PROC=${LOGDIR}/ae_htload.proc.log
+LOG_DIAG=${LOGDIR}/ae_htload.diag.log
+LOG_CUR=${LOGDIR}/ae_htload.cur.log
+LOG_VAL=${LOGDIR}/ae_htload.val.log
+
+export LOG_FILE LOG_PROC LOG_DIAG LOG_CUR LOG_VAL
+
+# curator mirror log file - indicates when sample files cannot be downloaded
+MIRROR_LOG_CUR=${LOGDIR}/mirror_ae.cur.log
+
+export MIRROR_LOG_CUR
+
+#  Send debug messages to the diagnostic log (true or false)
+LOG_DEBUG=false
+
+export LOG_DEBUG
+
+#  The name of the job stream for the load
+JOBSTREAM=ae_gxdhtload
+
+export JOBSTREAM
+
+###########################################################################
+#
+#  MISCELLANEOUS SETTINGS
+#
+###########################################################################
+
+#  The name of the load for the subject of an email notification
+MAIL_LOADNAME="ArrayExpress HT load"
+
+#  Recipient list for mailing the log files (comma-separated)
+MAIL_LOG_PROC=""
+
+MAIL_LOG_CUR=""
+#MAIL_LOG_CUR="sharon.giannatto@jax.org"
+
+export MAIL_LOADNAME MAIL_LOG_PROC MAIL_LOG_CUR
+
+INSTALLDIR=${GXDHTLOAD}
+
+export INSTALLDIR
