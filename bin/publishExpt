@@ -77,8 +77,8 @@ fi
 #
 cd ${CURRENT_DIR}
 echo "Source File:      ${NEW_FILE}"
-echo "Destination File: ${INPUT_FILE}"
-cp ${NEW_FILE} ${INPUT_FILE}
+echo "Destination File: ${INPUT_FILE_DEFAULT}"
+cp ${NEW_FILE} ${INPUT_FILE_DEFAULT}
 if [ $? -eq 0 ]
 then
     echo "Copy successful"
