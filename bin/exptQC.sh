@@ -83,7 +83,7 @@ else
     echo ${USAGE}; exit 1
 fi
 
-echo "INPUT_FILE: ${INPUT_FILE}"
+echo "INPUT_FILE in the sh script: ${INPUT_FILE}"
 
 #
 # Make sure the configuration file exists and source it.
@@ -122,7 +122,7 @@ fi
 #
 LOG=${QC_LOGFILE}
 echo "QC_LOGFILE: ${QC_LOGFILE}"
-#rm -rf ${LOG}
+rm -rf ${LOG}
 touch ${LOG}
 
 #
@@ -130,7 +130,6 @@ touch ${LOG}
 # the QC reports against.
 #
 dos2unix ${INPUT_FILE} ${INPUT_FILE} 2>/dev/null
-
 #
 # Create a temporary file and make sure it is removed when this script
 # terminates.
@@ -155,6 +154,7 @@ fi
 echo "" >> ${LOG}
 date >> ${LOG}
 echo "Generate the QC reports" >> ${LOG}
+echo "INPUT_FILE just before passing to python:  ${INPUT_FILE}"
 { ${PYTHON} ${GXDHTLOAD}/bin/exptQC.py ${INPUT_FILE} 2>&1; echo $? > ${TMP_FILE}; } >> ${LOG}
 
 if [ `cat ${TMP_FILE}` -eq 1 ]

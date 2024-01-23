@@ -83,33 +83,40 @@ exptPrefixes = os.getenv('EXPT_PREFIXES')
 # create a list and query string from those prefix(es)
 exptPrefixList = list(map(str.strip, str.split(exptPrefixes, ',')))
 exptQueryString = ''
-for e in exptPrefixList:
-    exptQueryString = exptQueryString + "'%s," % e
-length =  len(exptQueryString)
-exptQueryString + exptQueryString[:length - 1]
 
-cmd = '''select accid as exptID 
-        from acc_Accession a, gxd_Experiment e
-        where a._mgitype_key = 42
-        and a._logicaldb_key = 190
-        and a._object_key = e._experiment_key
-        and e._source_key = 87145238 --GEO'''
-print('cmd: %s' % cmd)
+# actions expected:
+actionList = ['add', 'update']
 
-# lines seen in the input file
-distinctLineList = []
+#
+# Lists for reporting
+#
 
-# duplicated lines in the input
-dupeLineList = []
+# AE experiments with configured prefixes in the database
+exptsInDbList = []
 
-# lines with < 6 columns
+# AE experiments with configured  prefixes in the database with samples
+exptsInDbWithSampleList = []
+
+# IDs seen in the input file
+distinctIdList = []
+
+# duplicated expt IDs in the input
+dupeIDList = []
+
+# lines with < 2 columns
 missingColumnList = []
 
-# lines with missing data in columns
-reqColumnList = []
+# experiment ID is not valid
+badIdList = []
 
-# a QTL id is not found in the database
-badExptIdList = []
+# action in file not expected
+badActionList = []
+
+# add action and expt ID in the db
+addInDbList = []
+
+# update action and expt ID not in the db
+updateNotInDbList = []
 
 # 1 if any QC errors in the input file
 hasFatalErrors = 0
@@ -129,6 +136,8 @@ def checkArgs ():
         sys.exit(1)
 
     inputFile = sys.argv[1]
+    print('checkArgs: %s' % inputFile)
+    print('sys.argv: %s' % sys.argv)
     return 0
 
 # end checkArgs() -------------------------------
@@ -140,12 +149,43 @@ def checkArgs ():
 #  creates files in the file system, creates connection to a database
 
 def init ():
+    global exptsInDbList, exptsInDbWithSampleList
 
     # open input/output files
     openFiles()
 
-    # load lookups
-    #cmd = ' START HERE CREATE QUERY USING exptQueryString
+    # create a list and query string from the configured prefix(es)
+    exptPrefixList = list(map(str.strip, str.split(exptPrefixes, ',')))
+
+    exptQueryString = "', '".join([str(elem) for elem in exptPrefixList])
+
+    # add sgl quotes to the beginning and end
+    exptQueryString = "'%s'" % exptQueryString
+
+    db.sql('''select accid as exptID, e._experiment_key
+        into temporary table aeExpts
+        from acc_Accession a, gxd_htexperiment e
+        where a._mgitype_key = 42
+        and a._logicaldb_key = 189
+        and a.prefixpart in (%s)
+        and a._object_key = e._experiment_key''' % exptQueryString, None)
+    db.sql('''create index idx1 on aeExpts(_experiment_key)''', None)
+
+    results1 = db.sql('''select * from aeExpts''', 'auto')
+    results2 =  db.sql('''select a.*
+        from aeExpts a, gxd_htrawsample s
+        where a._experiment_key = s._experiment_key''', 'auto')
+
+    print(len(results1))
+    for r in results1:
+        exptsInDbList.append(r['exptID'])
+    print('len(exptsInDbList): %s' % len(exptsInDbList))
+
+    print(len(results2))
+    for r in results2:
+        exptsInDbWithSampleList.append(r['exptID'])
+
+    print('len(exptsInDbWithSampleList): %s' % len(exptsInDbWithSampleList))
     db.useOneConnection(1)
 
 
@@ -205,69 +245,55 @@ def writeReport():
          return 0
     fpQcRpt.write('Fatal QC - if published the file will not be loaded')
 
-    if len(dupeLineList):
-        fpQcRpt.write(CRT + CRT + str.center('Lines Duplicated In Input',60) + CRT)
-        fpQcRpt.write('%-12s  %-20s%s' % ('Line#','Line', CRT))
-        fpQcRpt.write(12*'-' + '  ' + 20*'-' + CRT)
-        fpQcRpt.write(''.join(dupeLineList))
-        fpQcRpt.write(CRT + 'Total: %s' % len(dupeLineList))
+    if len(dupeIDList):
+        print('dupeIDList: %s' % dupeIDList)
+        fpQcRpt.write(CRT + CRT + str.center('Experiment IDs Duplicated In Input',60) + CRT)
+        fpQcRpt.write('%-5s  %-20s%s' % ('Line#','ID', CRT))
+        fpQcRpt.write(5*'-' + '  ' + 20*'-' + CRT)
+        fpQcRpt.write(''.join(dupeIDList))
+        fpQcRpt.write(CRT + 'Total: %s' % len(dupeIDList))
 
     if len(missingColumnList):
-        fpQcRpt.write(CRT + CRT + str.center('Lines with < 6 Columns',60) + CRT)
-        fpQcRpt.write('%-12s  %-20s%s' % ('Line#','Line', CRT))
-        fpQcRpt.write(12*'-' + '  ' + 20*'-' + CRT)
+        fpQcRpt.write(CRT + CRT + str.center('Lines with < 2 Columns',60) + CRT)
+        fpQcRpt.write('%-5s  %-20s%s' % ('Line#','Line', CRT))
+        fpQcRpt.write(5*'-' + '  ' + 20*'-' + CRT)
         fpQcRpt.write(CRT.join(missingColumnList))
         fpQcRpt.write(CRT + 'Total: %s' % len(missingColumnList))
 
-    if len(reqColumnList):
-        hasSkipErrors = 1
-        fpQcRpt.write(CRT + CRT + str.center('Missing Data in Required Columns',60) + CRT)
-        fpQcRpt.write('%-12s  %-20s%s' % ('Line#','Line', CRT))
-        fpQcRpt.write(12*'-' + '  ' + 20*'-' + CRT)
-        fpQcRpt.write(''.join(reqColumnList))
-        fpQcRpt.write(CRT + 'Total: %s' % len(reqColumnList))
+    if len(badIdList):
+        fpQcRpt.write(CRT + CRT + str.center('Invalid Experiment ID Prefix',60) + CRT)
+        fpQcRpt.write('%-5s  %-20s%s' % ('Line#','Line', CRT))
+        fpQcRpt.write(5*'-' + '  ' + 20*'-' + CRT)
+        fpQcRpt.write(''.join(badIdList))
+        fpQcRpt.write(CRT + 'Total: %s' % len(badIdList))
 
-    if len(orgPartSameList):
-        fpQcRpt.write(CRT + CRT + str.center('Organizer and Participant have same ID',60) + CRT)
-        fpQcRpt.write('%-12s  %-20s%s' % ('Line#','Line', CRT))
-        fpQcRpt.write(12*'-' + '  ' + 20*'-' + CRT)
-        fpQcRpt.write(''.join(orgPartSameList))
-        fpQcRpt.write(CRT + 'Total: %s' % len(orgPartSameList))
+    if len(badActionList):
+        fpQcRpt.write(CRT + CRT + str.center('Invalid Action',60) + CRT)
+        fpQcRpt.write('%-5s  %-20s%s' % ('Line#','Line', CRT))
+        fpQcRpt.write(5*'-' + '  ' + 20*'-' + CRT)
+        fpQcRpt.write(''.join(badActionList))
+        fpQcRpt.write(CRT + 'Total: %s' % len(badActionList))
 
-    if len(badQtlIdList):
-        fpQcRpt.write(CRT + CRT + str.center('Invalid Organizer and/or Participant ID',60) + CRT)
-        fpQcRpt.write('%-12s  %-20s%s' % ('Line#','Line', CRT))
-        fpQcRpt.write(12*'-' + '  ' + 20*'-' + CRT)
-        fpQcRpt.write(''.join(badQtlIdList))
-        fpQcRpt.write(CRT + 'Total: %s' % len(badQtlIdList))
+    if len(addInDbList):
+        fpQcRpt.write(CRT + CRT + str.center('Add Action, Experiment in Database',60) + CRT)
+        fpQcRpt.write('%-5s  %-20s%s' % ('Line#','Line', CRT))
+        fpQcRpt.write(5*'-' + '  ' + 20*'-' + CRT)
+        fpQcRpt.write(''.join(addInDbList))
+        fpQcRpt.write(CRT + 'Total: %s' % len(addInDbList))
 
-    if len(idSymDiscrepList):
-        fpQcRpt.write(CRT + CRT + str.center('Organizer and/or Participant ID does not match Symbol',60) + CRT)
-        fpQcRpt.write('%-12s  %-20s%s' % ('Line#','Line', CRT))
-        fpQcRpt.write(12*'-' + '  ' + 20*'-' + CRT)
-        fpQcRpt.write(''.join(idSymDiscrepList))
-        fpQcRpt.write(CRT + 'Total: %s' % len(idSymDiscrepList))
+    if len(updateNotInDbList):
+        fpQcRpt.write(CRT + CRT + str.center('Update Action, Experiment not in Database',60) + CRT)
+        fpQcRpt.write('%-5s  %-20s%s' % ('Line#','Line', CRT))
+        fpQcRpt.write(5*'-' + '  ' + 20*'-' + CRT)
+        fpQcRpt.write(''.join(updateNotInDbList))
+        fpQcRpt.write(CRT + 'Total: %s' % len(updateNotInDbList))
 
-    if len(badIntTermList):
-        fpQcRpt.write(CRT + CRT + str.center('Interaction Term does not Resolve',60) + CRT)
-        fpQcRpt.write('%-12s  %-20s%s' % ('Line#','Line', CRT))
-        fpQcRpt.write(12*'-' + '  ' + 20*'-' + CRT)
-        fpQcRpt.write(''.join(badIntTermList))
-        fpQcRpt.write(CRT + 'Total: %s' % len(badIntTermList))
-
-    if len(badJnumList):
-        fpQcRpt.write(CRT + CRT + str.center('JNumber value is not in the Database',60) + CRT)
-        fpQcRpt.write('%-12s  %-20s%s' % ('Line#','Line', CRT))
-        fpQcRpt.write(12*'-' + '  ' + 20*'-' + CRT)
-        fpQcRpt.write(''.join(badJnumList))
-        fpQcRpt.write(CRT + 'Total: %s' % len(badJnumList))
-
-    if len(noReciprocalList):
-        fpQcRpt.write(CRT + CRT + str.center('No Reciprocal for Organizer/Participant',60) + CRT)
-        fpQcRpt.write('%-12s  %-20s%s' % ('Line#', 'Line', CRT))
-        fpQcRpt.write(12*'-' + '  ' + 20*'-' + CRT)
-        fpQcRpt.write(''.join(noReciprocalList))
-        fpQcRpt.write(CRT + 'Total: %s' % len(noReciprocalList))
+    if len(exptsInDbWithSampleList):
+        fpQcRpt.write(CRT + CRT + str.center('Update Action, Experiment in Database with Samples',60) + CRT)
+        fpQcRpt.write('%-5s  %-20s%s' % ('Line#','Line', CRT))
+        fpQcRpt.write(5*'-' + '  ' + 20*'-' + CRT)
+        fpQcRpt.write(''.join(exptsInDbWithSampleList))
+        fpQcRpt.write(CRT + 'Total: %s' % len(exptsInDbWithSampleList))
 
     return 0
 
@@ -300,98 +326,73 @@ def closeFiles ():
     #
 
 def runQcChecks():
-    global hasFatalErrors, distinctLineList, dupeLineList, qtlPairDict
-    global missingColumnList, reqColumnList, orgPartSameList, badQtlIdList
-    global idSymDiscrepList, badIntTermList, noReciprocalList, badJnumList
+    global hasFatalErrors, distinctIdList, dupeIDList, addInDbList
+    global missingColumnList, badActionList, badIdList, updateNotInDbList
 
-
-    header = fpInput.readline()
     line = fpInput.readline()
-    lineNum = 1
+    lineNum = 0 
     while line:
         lineNum += 1
-        #print('lineNum: %s line: %s' % (lineNum, line))
-        if line not in distinctLineList:
-            distinctLineList.append(line)
-        else:
-            dupeLineList.append('%s  %s' % (lineNum, line))
-        # check that the file has at least 23 columns
-        if len(str.split(line, TAB)) < 6:
+        print('lineNum: %s line: %s' % (lineNum, line))
+
+        # check that the file has at least 2 columns
+        if len(str.split(line, TAB)) < 2:
+            print('missing column in: %s' % line)
             missingColumnList.append('%s  %s' % (lineNum, line))
             hasFatalErrors = 1
             line = fpInput.readline()
             continue
-        # get columns 1-6 
-        (orgID, orgSym, partID, partSym, interactionType, jNum) = list(map(str.strip, str.split(line, TAB)))[:6]
+        # get columns 1-2 
+        (exptID, action) = list(map(str.strip, str.split(line, TAB)))[:2]
+        print('exptID: %s action: %s' % (exptID, action))
 
-        # all columns required
-        if orgID == '' or orgSym == '' or partID == '' or partSym == '' or interactionType == '' or jNum == '':
-            reqColumnList.append('%s  %s' % (lineNum, line))
-            hasFatalErrors = 1
+        if exptID not in distinctIdList:
+            distinctIdList.append(exptID)
+        else:
+            dupeIDList.append('%s  %s' % (lineNum, line))
 
-        # add the qtl org and part to the qtlPairDict - later we will check for reciprocals
-        key = '%s|%s' % (orgID, partID)
-        if key not in qtlPairDict:
-            qtlPairDict[key] = []
-        qtlPairDict[key].append('%s %s' % (lineNum, line))
+        # for case insensitive QC
+        action = str.lower(action)
 
         # Now verify each column
+        # Col 1 - expt ID
+        found = 0
+        for p in exptPrefixList:
+            print('prefix: %s' % p)
+            if str.find(exptID, p) != -1:
+                found = 1 
+                break
 
-        # are the organizer and participant different?
-        if orgID == partID:
-            orgPartSameList.append('%s  %s' % (lineNum, line))
+        if found == 0:
+            badIdList.append('%s  %s' % (lineNum, line))
+            hasFatalErrors = 1    
+            line = fpInput.readline()
+            continue
+
+        # Col 2 - action
+        if action not in actionList:
+            badActionList.append('%s  %s' % (lineNum, line))
             hasFatalErrors = 1
-        # is orgID a qtl ID?
-        if orgID not in qtlLookupDict:
-            badQtlIdList.append('%s  %s' % (lineNum, line))
+
+        # if no fatal errors thus far check the action agains the db
+
+        # adds should not be in the database
+        if action == 'add' and exptID in exptsInDbList:
+            addInDbList.append('%s  %s' % (lineNum, line))
             hasFatalErrors = 1
-        else:
-            # does orgSym match orgID?
-           if orgSym != qtlLookupDict[orgID]:
-                idSymDiscrepList.append('%s  %s' % (lineNum, line))
-                hasFatalErrors = 1
-        # is partID  a qtl ID?
-        if partID not in qtlLookupDict:
-            badQtlIdList.append('%s  %s' % (lineNum, line))
+
+        # updates should be in the database
+        if action == 'update' and exptID not in exptsInDbList:
+            updateNotInDbList.append('%s  %s' % (lineNum, line))
             hasFatalErrors = 1
-        else:
-            # does partSym match partID?
-           if partSym != qtlLookupDict[partID]:
-                idSymDiscrepList.append('%s  %s' % (lineNum, line))
-                hasFatalErrors = 1
-        # is interactionType a real term?
-        if interactionType not in interactionLookupList:
-            badIntTermList.append('%s  %s' % (lineNum, line))
-            hasFatalErrors = 1
-        
-        if jNum not in jNumLookupList:
-            badJnumList.append('%s  %s' % (lineNum, line))
-            hasFatalErrors = 1
-        
+
+        # updates should not have raw samples in the database
+        if action == 'update' and exptID in exptsInDbWithSampleList:
+            update
         line = fpInput.readline()
-    # now check for reciprocals
-    #for key in qtlPairDict:
-    #    print('%s: %s' % (key, qtlPairDict[key]))
-    for pair in qtlPairDict:
-        (org, part) =  str.split(pair, '|')
-        reciprocal = '%s|%s' % (part, org)
-        if reciprocal not in qtlPairDict:
-            #print('reciprocal not found')
-            pList = qtlPairDict[pair]
-            for p in pList:
-                noReciprocalList.append(p)
-            hasFatalErrors = 1
     return 0
 
 # end runQcChecks() -------------------------------
-
-def writeLoadReadyFile():
-    for a in allelesToLoadList:
-        fpLoadReady.write(a.toLoad())
-
-    return 0
-
-# end writeLoadReadyFile() -------------------------------
 
 #
 # Main
@@ -404,18 +405,13 @@ print('init(): %s' % time.strftime("%H.%M.%S.%m.%d.%y", time.localtime(time.time
 sys.stdout.flush()
 init()
 
-#print('runQcChecks(): %s' % time.strftime("%H.%M.%S.%m.%d.%y", time.localtime(time.time())))
-#sys.stdout.flush()
-#runQcChecks()
+print('runQcChecks(): %s' % time.strftime("%H.%M.%S.%m.%d.%y", time.localtime(time.time())))
+sys.stdout.flush()
+runQcChecks()
 
-#print('writeReport(): %s' % time.strftime("%H.%M.%S.%m.%d.%y", time.localtime(time.time())))
-#sys.stdout.flush()
-#writeReport()
-
-# everything is fatal right now - keep to see if we will need
-#print('writeLoadReadyFile(): %s' % time.strftime("%H.%M.%S.%m.%d.%y", time.localtime(time.time())))
-#sys.stdout.flush()
-#writeLoadReadyFile()
+print('writeReport(): %s' % time.strftime("%H.%M.%S.%m.%d.%y", time.localtime(time.time())))
+sys.stdout.flush()
+writeReport()
 
 print('closeFiles(): %s' % time.strftime("%H.%M.%S.%m.%d.%y", time.localtime(time.time())))
 sys.stdout.flush()
