@@ -25,9 +25,10 @@ import accessionlib
 
 TAB = '\t'
 CRT = '\n'
+MOUSE = 'Mus musculus'
 
-# the list of geo experiment Ids to load
-expIdList = []
+# mapping of exptID to action from the input file
+expIdDict = {}
 
 # today's date
 loadDate = loadlib.loaddate
@@ -80,12 +81,11 @@ sourceKey = 20475431
 #
 # ArrayExpress ID file and descriptor
 inputDir = os.getenv('INPUTDIR')
-inFileName = os.getenv('INPUT_FILE')
+inFileName = os.getenv('INPUT_FILE_DEFAULT')
 fpInFile = None
 
 # QC file and descriptor
-qcFileName = os.getenv('QC_RPT')
-fpQcFile = None
+fpCur = open (os.getenv('LOG_CUR'), 'a')
 
 # Experiment parsing reports
 expParsingFileName = os.environ['EXP_PARSING_RPT']
@@ -94,16 +94,22 @@ fpExpParsingFile = None
 #
 # BCP files
 #
-experimentFileName = os.getenv('EXPERIMENT_BCP')
+experimentFileName = os.getenv('EXPERIMENT_FILENAME')
 fpExperimentBcp = None
 
-accFileName = os.getenv('ACC_BCP')
+sampleFileName = os.environ['SAMPLE_FILENAME']
+fpSampleBcp = None
+
+keyValueFileName = os.environ['KEYVALUE_FILENAME']
+fpKeyValueBcp = None
+
+accFileName = os.getenv('ACC_FILENAME')
 fpAccBcp = None
 
-variableFileName = os.getenv('VARIABLE_BCP')
+variableFileName = os.getenv('VARIABLE_FILENAME')
 fpVariableBcp =  None
 
-propertyFileName = os.getenv('PROPERTY_BCP')
+propertyFileName = os.getenv('PROPERTY_FILENAME')
 fpPropertyBcp = None
 
 # for MGI_Property:
@@ -116,31 +122,33 @@ pubmedPropKey =	20475430
 propTypeKey = 1002
 
 # Number of experiments in AE json file
-expCount = 0
+exptCount = 0
 
 # Number experiments loaded
-loadedCount = 0
+exptLoadedCount = 0
 
 #Number of experiments already in the database
 inDbCount = 0
 
-# Number of experiments in the db whose pubmed IDs were updated
+# Number of experiments in the db that had raw samples added
 updateExptCount = 0
 
-# cache of IDs and counts in the input
-# idDict = {primaryID:count, ...}
-idDict = {}
+# list of experiment files found to be missing
+missingExptFileList = []
+missingSampleFileList = []
 
-# list of files found to be missing
-missingFileList = []
+# None of the 3 sample attributes we use to determine the sample id exist
+noSampleIdList = []
 
-# records with no id
-noIdList = []
+# invalid experiment type
+invalidExptTypeDict = {}
+
+# Experiments that are not mouse
+nonMouseDict = {}
 
 # AE IDs that have non integer sample count
 # looks like {primaryID:sampleCount, ...}
 invalidSampleCountDict = {}
-
 # AE IDs that have invalid release and update dates
 # looks like {primaryID:date, ...}
 invalidReleaseDateDict = {}
@@ -155,10 +163,6 @@ primaryIdDict = {}
 # raw experiment types mapped to controlled vocabulary keys
 exptTypeTransDict = {}
 
-# pubmed properties by AE ID (primary) in the db
-# {AE ID: [pubmedId1, ..., pubmedIdn], ...}
-pubMedByExptDict = {}
-
 #
 # Purpose:  Open file descriptors, get next primary keys, create lookups
 # Returns: 1 if file does not exist or is not readable, else 0
@@ -167,32 +171,25 @@ pubMedByExptDict = {}
 # Throws: Nothing
 #
 def initialize():
-    global expIdList, fpExpParsingFile
-    global fpInFile, fpQcFile, fpExperimentBcp, fpAccBcp, fpVariableBcp 
-    global fpPropertyBcp, nextExptKey, nextAccKey, nextExptVarKey
-    global nextPropKey
+    global expIdDict, fpExpParsingFile
+    global fpInFile, fpExperimentBcp, fpAccBcp, fpVariableBcp 
+    global fpPropertyBcp, fpKeyValueBcp, nextExptKey, nextAccKey
+    global nextExptVarKey, nextPropKey 
 
     # create file descriptors
     try:
         fpInFile = open(inFileName, 'r')
     except:
         print('%s does not exist' % inFileName)
-    for id in fpInFile.readlines():
-        id = str.strip(id)
-        if id == '' or id == '#':
-            continue
-        expIdList.append(id)
 
-    try:
-        fpQcFile = open(qcFileName, 'w')
-    except:
-         print('Cannot create %s' % qcFileName)
+    for line in fpInFile.readlines():
+        (exptID, action) = list(map(str.strip, str.split(line, TAB)))[:2]
+        expIdDict[exptID] = action
 
     try:
         fpExpParsingFile = open(expParsingFileName, 'w')
     except:
          print('Cannot create %s' % expParsingFileName)
-
 
     try:
         fpExperimentBcp = open(experimentFileName, 'w')
@@ -213,6 +210,11 @@ def initialize():
         fpPropertyBcp = open(propertyFileName, 'w')
     except:
         print('Cannot create %s' % propertyFileName)
+
+    try:
+        fpKeyValueBcp = open(keyValueFileName, 'w')
+    except:
+        print('Cannot create %s' % keyValueFileName)
 
     db.useOneConnection(1)
 
@@ -261,131 +263,102 @@ def initialize():
     for r in results:
         exptTypeTransDict[r['badname']] = r['_Object_key']
 
-    # create the pubmed ID property lookup by experiment
-    results = db.sql('''select a.accid, p.value
-        from GXD_HTExperiment e, ACC_Accession a, MGI_Property p
-        where e._Experiment_key = a._Object_key
-        and a._MGIType_key = %s
-        and a._LogicalDB_key = %s
-        and a.preferred = 1
-        and e._Experiment_key = p._Object_key
-        and p._PropertyTerm_key = %s
-        and p._PropertyType_key = %s''' % \
-            (mgiTypeKey, aeLdbKey, pubmedPropKey, propTypeKey), 'auto')
-
-    for r in results:
-        accid = r['accid'] 
-        value = r['value']
-        if accid not in pubMedByExptDict:
-            pubMedByExptDict[accid] = []
-        pubMedByExptDict[accid].append(value)
-
     db.useOneConnection(0)
     
-    return
-
-def checkPrimaryId(id):
-    global idDict
-    if id not in idDict:
-        idDict[id] = 1
-    else:
-        idDict[id] += 1
-    return
-
-def checkInteger(rawText):
-    if type(rawText) == int:
-        return 1
-    elif type(rawText) == bytes:
-        for c in rawText:
-            if not c.isdigit():
-                return 0
-        return 1
     return 0
 
-def checkDate(rawText):
-    if rawText.find(',') > -1:
-        return 0
-    # yyyy-mm-dd format
-    ymd = re.compile('([0-9]{4})-([0-9]{2})-([0-9]{2})')
-    ymdMatch = ymd.match(rawText)
-    
-    if ymdMatch:
-        (year, month, day) = ymdMatch.groups()
-        if (1950 <= int(year) <= 2050):
-            if (1 <= int(month) <= 12):
-                if (1 <= int(day) <= 31):
-                    return 1
+def closeInputFiles(expt, sample):
+
+    expt.close()
+    sample.close()
+
     return 0
-
-#
-# Purpose: does QC
-# Returns: 1 if qc error, else 0
-# Assumes: Nothing
-# Effects: 
-# Throws: Nothing
-#
-
-def doQcChecks(primaryID, name, sampleCount, releasedate, lastupdatedate):
-    hasError = 0
-    if primaryID == '':
-        noIdList.append('Name: %s' % name)
-        # if no primary ID skip remaining checks
-        return 1
-    else:
-        checkPrimaryId(primaryID)
-
-    # check that sample is integer
-    if sampleCount and checkInteger(sampleCount)== 0:
-        invalidSampleCountDict[primaryID] = sampleCount
-        hasError = 1
-    # check dates
-    if releasedate != '' and checkDate(releasedate) == 0:
-        invalidReleaseDateDict[primaryID] = releasedate
-        hasError = 1
-
-    if lastupdatedate != '' and checkDate(lastupdatedate) == 0:
-        invalidUpdateDateDict[primaryID]= lastupdatedate
-        hasError = 1
-
-    return hasError
 
 def processAll():
-    for id in expIdList:
+    for id in expIdDict:
+        action = expIdDict[id]
         currentExpFile = '%s/%s.json' % (inputDir, id)
         currentSampFile = '%s/%s.sdrf.txt' % (inputDir, id)
+
+        print('id: %s action: %s' % (id, action))
         print('currentExpFile: %s' % currentExpFile)
         print('currentSampFile:%s' % currentSampFile)
+
+        # Open file descriptors for Experiment and Sample 
         try:
             fpExpCurrent = open(currentExpFile, 'r')
         except:
             print('Cannot open %s skipping experiment %s' % (currentExpFile, id)) 
-            missingFileList.append(currentExpFile)
+            missingExptFileList.append('%s : Experiment File does not Exist' % id)
             continue
+
         try:
             fpSampCurrent = open(currentSampFile, 'r')
         except:
             print('Cannot open %s skipping experiment %s' % (currentSampFile, id))
-            missingFileList.append(currentSampFile)
+            missingSampleFileList.append('%s : Sample File does not Exist' % id)
+            fpExpCurrent.close()
             continue
-        expJFile = json.load(fpExpCurrent)
-        process(expJFile, fpSampCurrent)
+
+        # sometimes a file downloads, but it is empty, this try except block
+        # will capture the error 
+        try:
+            expJFile = json.load(fpExpCurrent)
+        except:
+            print('File is empty %s skipping experiment %s' % (currentExpFile, id))
+            missingExptFileList.append('%s : Experiment File is Empty' % id)
+            closeInputFiles(fpExpCurrent, fpSampCurrent)            
+            continue
+
+        # process the experiment
+        exptKey = processExperiment(expJFile) 
+        print('exptKey: %s' % exptKey)
+
+        # processExperiment handles logging if there are issues processing 
+        # if an experiment key is not returned, move on to the next expt.
+        if exptKey == 0:
+            closeInputFiles(fpExpCurrent, fpSampCurrent)
+            continue
+
+        # process the samples
+        rc = processSample(fpSampCurrent, id, exptKey)
+        print('processSample rc: %s' % rc)
+        if rc:
+            print('File is empty %s skipping samples for %s' % (currentSampFile, id))
+            missingSampleFileList.append('%s : Sample File is Empty' % id)
+            closeInputFiles(fpExpCurrent, fpSampCurrent)
+            continue
+
+    closeInputFiles(fpExpCurrent, fpSampCurrent)
+
+    return 0
 
 def processExperiment(expJFile):
-    #print('\nprocessExperiment')
+    global exptCount, noSampleIdList, exptLoadedCount, nonMouseDict
+    global inDbCount
+    global nextExptKey, nextAccKey, nextExptVarKey, nextPropKey
+
+    print('\nprocessExperiment')
     #
     # Process Experiment
     #
-    id = ''
+    exptCount += 1
+    exptID = ''
     title = ''
     relDate = ''
-    expType = ''
+    exptType = ''
+    exptTypeKey = ''
     description = ''
+    organism = ''
     sampleNum = ''
     authorList = []
     pubMedIdList = []
 
-    id = expJFile['accno']
-   
+    exptID = expJFile['accno']
+    print('processExperiment, exptID from file: %s' % exptID)
+    if exptID in primaryIdDict:
+        inDbCount += 1
+
     attr = expJFile['attributes']
     #print('attr: %s\n' % attr)
 
@@ -403,12 +376,20 @@ def processExperiment(expJFile):
     #print('sAttr: %s\n' % sAttr)
     for a in sAttr:
         if a['name'] == 'Study type':
-            expType = a['value']
+            exptType = a['value']
         elif a['name'] == 'Description':
             description  = a['value']
+        elif a['name'] == 'Organism':
+            organism = a['value']
+    if exptType not in exptTypeTransDict:
+        invalidExptTypeDict[exptID] = exptType
+        return 0
+    exptTypeKey = exptTypeTransDict[exptType]
 
+    if organism != MOUSE:
+        nonMouseDict[exptID] = organism
+        return 0
     subsections = section['subsections']
-    
     for subs in subsections:
         if type(subs) != list:
             # Note: This is experiment authors NOT publication authors
@@ -434,19 +415,36 @@ def processExperiment(expJFile):
     fpExpParsingFile.write('id: %s%s' % (id, CRT))
     fpExpParsingFile.write('title :%s%s' % (title, CRT))
     fpExpParsingFile.write('relDate: %s%s' % (relDate, CRT))
-    fpExpParsingFile.write('expType: %s%s' % (expType, CRT))
+    fpExpParsingFile.write('exptType: %s%s' % (exptType, CRT))
     fpExpParsingFile.write('description: %s%s' % (description, CRT))
+    fpExpParsingFile.write('organism:  %s%s' % (organism, CRT))
     fpExpParsingFile.write('sampleNum: %s%s' % (sampleNum, CRT))
     fpExpParsingFile.write('authors: %s%s' % (authorList, CRT))
     fpExpParsingFile.write('PubMedIds: %s%s' % (pubMedIdList, CRT))
 
-    return id
+    # write to bcp files
+    #if just samples (update):
+    # updateExptCount += 1
+    # if new experiments: 
+    nextExptKey += 1
+    #exptLoadedCount += 1
+    
+    return nextExptKey
 
-def processSample(fpSampFile, expID): # later change expID to exptKey
+def processSample(fpSampFile, exptID, exptKey): 
 
-    #print('\nprocessSample')
-    headers = str.strip(fpSampFile.readline()) # remove the newline
-    tokens = str.split(headers, TAB)
+    print('\nprocessSample')
+    headerLine = fpSampFile.readline()
+       
+# START - here I need to check for empty file vs missing file
+# maybe get the function working first before worrying about this.
+    # process the non positional header into data structures
+    headerLine = str.strip(headerLine)
+    print('Header: %s' % headerLine)
+    if headerLine == '':
+        print('Empty file')
+        return 1
+    tokens = str.split(headerLine, TAB)
 
     allHeaderDict = {}
     unitCharHeaderDict = {}
@@ -459,9 +457,13 @@ def processSample(fpSampFile, expID): # later change expID to exptKey
         else:
             allHeaderDict[t] = tokens.index(t)
     #print(unitCharHeaderDict)
-    #print('\nSample File Body:')
+
+    # process the body of the file
     for line in fpSampFile.readlines():
-        line = line[:-1] # remove the newline, don't trim whitespace as last column may be empty
+
+        # remove the newline, don't trim whitespace as last column may be empty
+        line = line[:-1] 
+
         tokens = str.split(line, TAB)
         #print(tokens) 
         fpExpParsingFile.write('%sReport Sample Named Attributes:%s' % (CRT, CRT))   
@@ -494,6 +496,10 @@ def processSample(fpSampFile, expID): # later change expID to exptKey
             extract_name = ''
             fpExpParsingFile.write('missing extract_name%s' % CRT)
 
+        if ena_sample == '' and biosd_sample == '' and source_name == '':
+            noSampleIdList.append(exptID)
+            fpExpParsingFile.write('No Sample ID, skipping sample:%s' % CRT)
+            continue
         if ena_sample != '':
             sampleID = ena_sample
         elif biosd_sample != '':
@@ -506,84 +512,85 @@ def processSample(fpSampFile, expID): # later change expID to exptKey
         for attr in unitCharHeaderDict:
             index = unitCharHeaderDict[attr]
             fpExpParsingFile.write('%s: "%s" index: %s%s' % (attr, tokens[index], index, CRT)) 
-    return
-#
-# Purpose: parse input file, QC, create bcp files
-# Returns: 1 if file can be read/processed correctly, else 0
-# Assumes: Nothing
-# Effects: Creates files in the file system
-# Throws: Nothing
-#
-def process(expJFile, fpSampFile):
-
-    expID = processExperiment(expJFile) # later change return to expKey
-    processSample(fpSampFile, expID)
-
-    return
+    return 0
 
 def writeQC():
-    fpQcFile.write('GXD HT Raw Data Load QC%s%s%s' % (CRT, CRT, CRT))
+    fpCur.write(' ArrayExpress HT Data Load QC%s%s' % (CRT, CRT))
 
-    fpQcFile.write('Number of experiments in the input: %s%s' % \
-        (expCount, CRT))
-    fpQcFile.write('Number of experiments already in the database: %s%s' %\
+    fpCur.write('Number of experiments in the input: %s%s' % \
+        (exptCount, CRT))
+    fpCur.write('Number of experiments already in the database: %s%s' %\
          (inDbCount, CRT))
-    fpQcFile.write('Number of experiments loaded: %s%s' % \
-        (loadedCount, CRT))
-    fpQcFile.write('Number of experiments with updated PubMed IDs: %s%s%s'\
+    fpCur.write('Number of experiments loaded: %s%s' % \
+        (exptLoadedCount, CRT))
+    fpCur.write('Number of experiments updated with Raw Samples: %s%s%s'\
          % (updateExptCount, CRT, CRT))
 
-    if len(missingFileList):
-        fpQcFile.write('Missing Files, experiments not loaded%s' % CRT)
-        fpQcFile.write('--------------------------------------------------%s' % CRT)
-        for file in missingFileList:
-            fpQcFile.write('%s%s' %  (file, CRT))
-        fpQcFile.write('%sTotal: %s%s%s' % (CRT, len(missingFileList), CRT, CRT))
+    if len(missingExptFileList):
+        fpCur.write('Missing or Empty Experiment Files, experiments not loaded%s' % CRT)
+        fpCur.write('--------------------------------------------------%s' % CRT)
+        for file in missingExptFileList:
+            fpCur.write('%s%s' %  (file, CRT))
+        fpCur.write('%sTotal: %s%s%s' % (CRT, len(missingExptFileList), CRT, CRT))
 
-    if len(noIdList):
-        fpQcFile.write('Experiments with no Primary ID%s' % CRT)
-        fpQcFile.write('--------------------------------------------------%s' % CRT)
-        for name in noIdList:
-            fpQcFile.write('%s%s' %  (name, CRT))
-        fpQcFile.write('%sTotal: %s%s%s' % (CRT, len(noIdList), CRT, CRT))
+    if len(missingSampleFileList):
+        fpCur.write('Missing or Empty Sample Files, experiments not loaded%s' % CRT)
+        fpCur.write('--------------------------------------------------%s' % CRT)
+        for file in missingSampleFileList:
+            fpCur.write('%s%s' %  (file, CRT))
+        fpCur.write('%sTotal: %s%s%s' % (CRT, len(missingSampleFileList), CRT, CRT))
 
-    multiList = []
-    for id in idDict:
-        if idDict[id] > 1:
-            multiList.append('%s%s%d%s' %  (id, TAB, idDict[id], CRT))
-    if len(multiList):
-        fpQcFile.write('Multiple Experiments with same AE ID%s' % CRT)
-        fpQcFile.write('ID%sCount%s' % (TAB, CRT))
-        fpQcFile.write('--------------------------------------------------%s' % CRT)
-        for line in multiList:
-             fpQcFile.write(line)
-        fpQcFile.write('%sTotal: %s%s%s' % (CRT, len(multiList), CRT, CRT))
+
+    if len(invalidExptTypeDict):
+        fpCur.write('Experiments with Invalid Experiment Type,  experiments not loaded%s' % CRT)
+        fpCur.write('--------------------------------------------------%s' % CRT)
+
+        for id in invalidExptTypeDict:
+            fpCur.write('%s%s%s%s' %  (id, TAB, invalidExptTypeDict[id], CRT))
+        fpCur.write('\nTotal: %s%s%s' % (len(invalidExptTypeDict), CRT, CRT))
+
+    if len(nonMouseDict):
+        fpCur.write('Non-Mouse Experiments, experiments not loaded%s' % CRT)
+        fpCur.write('ID%sOrganism%s' % (TAB, CRT))
+        fpCur.write('--------------------------------------------------%s' % CRT)
+        for id in nonMouseDict:
+            fpCur.write('%s%s%s%s' %  (id, TAB, nonMouseDict[id], CRT))
+        fpCur.write('\nTotal: %s%s%s' % (len(nonMouseDict), CRT, CRT))
+
 
     if len(invalidSampleCountDict):
-        fpQcFile.write('Experiments with Invalid Sample Count%s' % CRT)
-        fpQcFile.write('ID%sSample Count%s' % (TAB, CRT))
-        fpQcFile.write('--------------------------------------------------%s' % CRT)
+        fpCur.write('Experiments with Invalid Sample Count%s' % CRT)
+        fpCur.write('ID%sSample Count%s' % (TAB, CRT))
+        fpCur.write('--------------------------------------------------%s' % CRT)
         for id in invalidSampleCountDict:
-            fpQcFile.write('%s%s%s%s' %  (id, TAB, invalidSampleCountDict[id], CRT))
-        fpQcFile.write('\nTotal: %s%s%s' % (len(invlaidSampleCountDict), CRT, CRT))
+            fpCur.write('%s%s%s%s' %  (id, TAB, invalidSampleCountDict[id], CRT))
+        fpCur.write('\nTotal: %s%s%s' % (len(invalidSampleCountDict), CRT, CRT))
 
     if len(invalidReleaseDateDict):
-        fpQcFile.write('Experiments with Invalid Release Date%s' % CRT)
-        fpQcFile.write('ID%sRelease Date%s' % (TAB, CRT))
-        fpQcFile.write('--------------------------------------------------%s' % CRT)
+        fpCur.write('Experiments with Invalid Release Date%s' % CRT)
+        fpCur.write('ID%sRelease Date%s' % (TAB, CRT))
+        fpCur.write('--------------------------------------------------%s' % CRT)
         for id in invalidReleaseDateDict:
-            fpQcFile.write('%s%s%s%s' %  (id, TAB, invalidReleaseDateDict[id], CRT))
-        fpQcFile.write('\nTotal: %s%s%s' % (len(invalidReleaseDateDict), CRT, CRT))
+            fpCur.write('%s%s%s%s' %  (id, TAB, invalidReleaseDateDict[id], CRT))
+        fpCur.write('\nTotal: %s%s%s' % (len(invalidReleaseDateDict), CRT, CRT))
 
     if len(invalidUpdateDateDict):
-        fpQcFile.write('Experiments with Invalid Update Date%s' % CRT)
-        fpQcFile.write('ID%sUpdate Date%s' % (TAB, CRT))
-        fpQcFile.write('--------------------------------------------------%s' % CRT)
+        fpCur.write('Experiments with Invalid Update Date%s' % CRT)
+        fpCur.write('ID%sUpdate Date%s' % (TAB, CRT))
+        fpCur.write('--------------------------------------------------%s' % CRT)
         for id in invalidUpdateDateDict:
-            fpQcFile.write('%s%s%s%s' %  (id, TAB, invalidUpdateDateDict[id], CRT))
-        fpQcFile.write('\nTotal: %s%s%s' % (len(invalidUpdateDateDict), CRT, CRT))
+            fpCur.write('%s%s%s%s' %  (id, TAB, invalidUpdateDateDict[id], CRT))
+        fpCur.write('\nTotal: %s%s%s' % (len(invalidUpdateDateDict), CRT, CRT))
 
-    return
+    if len(noSampleIdList):
+        fpCur.write('Samples with no ID, sample not loaded%s' % CRT)
+        fpCur.write('--------------------------------------------------%s' % CRT)
+        for name in noSampleIdList:
+            fpCur.write('%s%s' %  (name, CRT))
+        fpCur.write('%sTotal: %s%s%s' % (CRT, len(noSampleIdList), CRT, CRT))
+
+
+    return 0
 
 #
 # Purpose: Close file descriptors
@@ -595,19 +602,19 @@ def writeQC():
 def closeFiles():
 
     fpInFile.close()
-    fpQcFile.close()
+    fpCur.close()
     fpExpParsingFile.close()
     fpExperimentBcp.close()
     fpAccBcp.close()
     fpVariableBcp.close()
     fpPropertyBcp.close()
 
-    return
+    return 0
 #
 # main
 #
 
 initialize()
 processAll()
-#writeQC()
+writeQC()
 closeFiles()
