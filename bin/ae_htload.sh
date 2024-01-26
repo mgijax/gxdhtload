@@ -114,12 +114,70 @@ fi
 preload #${OUTPUTDIR}
 
 #
+# rm all files/dirs from OUTPUTDIR
+#
+
+cleanDir ${OUTPUTDIR}
+
+# NOTE: keep this commented out until production release
+#
+# There should be a "lastrun" file in the input directory that was created
+# the last time the load was run for this input file. If this file exists
+# and is more recent than the input file, the load does not need to be run.
+#
+LASTRUN_FILE=${INPUTDIR}/lastrun
+if [ -f ${LASTRUN_FILE} ]
+then
+    if test ${LASTRUN_FILE} -nt ${INPUT_FILE_DEFAULT}
+    then
+
+        echo "Input file has not been updated - skipping load" | tee -a ${LOG_PROC}
+        # set STAT for shutdown
+        STAT=0
+        echo 'shutting down'
+        shutDown
+        exit 0
+    fi
+fi
+
+echo "" >> ${LOG_DIAG}
+date >> ${LOG_DIAG}
+echo "Run QC checks"  | tee -a ${LOG_DIAG}
+${GXDHTLOAD}/bin/exptQC.sh ${INPUT_FILE_DEFAULT} live
+STAT=$?
+
+if [ ${STAT} -eq 1 ]
+then
+    checkStatus ${STAT} "An error occurred while generating the QC reports - See ${QC_LOGFILE}. exptQC.sh"
+
+    # run postload cleanup and email logs
+    shutDown
+fi
+
+if [ ${STAT} -eq 2 ]
+then
+    checkStatus ${STAT} "QC errors detected. See ${QC_RPT}. exptQC.sh"
+
+    # run postload cleanup and email logs
+    shutDown
+
+fi
+
+#
 #  run the load
 #
 echo 'Running ae_htload.py'  | tee -a ${LOG_DIAG}
 ${PYTHON} ${GXDHTLOAD}/bin/ae_htload.py >> ${LOG_DIAG}
 STAT=$?
 checkStatus ${STAT} "${GXDHTLOAD}/bin/ae_htload.py"
+
+#
+# Touch the "lastrun" file to note when the load was run.
+#
+#if [ ${STAT} = 0 ]
+#then
+#    touch ${LASTRUN_FILE}
+#fi
 
 #
 # run postload cleanup and email logs

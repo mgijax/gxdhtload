@@ -83,8 +83,6 @@ else
     echo ${USAGE}; exit 1
 fi
 
-echo "INPUT_FILE in the sh script: ${INPUT_FILE}"
-
 #
 # Make sure the configuration file exists and source it.
 #
@@ -121,7 +119,7 @@ fi
 # Initialize the log file.
 #
 LOG=${QC_LOGFILE}
-echo "QC_LOGFILE: ${QC_LOGFILE}"
+#echo "QC_LOGFILE: ${QC_LOGFILE}"
 rm -rf ${LOG}
 touch ${LOG}
 
@@ -154,12 +152,12 @@ fi
 echo "" >> ${LOG}
 date >> ${LOG}
 echo "Generate the QC reports" >> ${LOG}
-echo "INPUT_FILE just before passing to python:  ${INPUT_FILE}"
 { ${PYTHON} ${GXDHTLOAD}/bin/exptQC.py ${INPUT_FILE} 2>&1; echo $? > ${TMP_FILE}; } >> ${LOG}
 
 if [ `cat ${TMP_FILE}` -eq 1 ]
 then
     echo "An error occurred while generating the QC reports"
+    echo `cat ${TMP_FILE}`
     echo "See log file (${LOG})"
     RC=1
 elif [ `cat ${TMP_FILE}` -eq 2 ]

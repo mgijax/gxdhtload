@@ -25,7 +25,10 @@ import accessionlib
 
 TAB = '\t'
 CRT = '\n'
-MOUSE = 'Mus musculus'
+MOUSE = 'mus'
+
+# default experiment confidence value
+confidence = 0.0
 
 # mapping of exptID to action from the input file
 expIdDict = {}
@@ -50,13 +53,22 @@ isPreferred = 1
 notPreferred = 0
 private = 0
 
+# null values in gxd_htexperiment
+updateDate = ''
+evalDate = ''
+evalByKey = ''
+initCurByKey = ''
+lastCurByKey = ''
+initCurDate = ''
+lastCurDate = ''
+
 # For GXD_HTExperimentVariable:
 # 'Not Curated' from 'GXD HT Variables' (vocab key=122)
 exptVariableTermKey = 20475439 
 
 # For GXD_HTExperiment:
 # 'Not Evaluated' from 'GXD HT Evaluation State' (vocab key = 116) 
-defaultEvalStateTermKey = 20225941 
+defaultEvalStateTermKey = 100079348 
 
 # 'No' from  'GXD HT Evaluation State' (vocab key = 116)
 altEvalStateTermKey=20225943
@@ -76,6 +88,9 @@ exptTypeNRKey = 20475438
 # 'ArrayExpress' from 'GXD HT Source' (vocab key = 119)
 sourceKey = 20475431  
 
+# For GXD_HTRawSample
+rawSampleMgiTypeKey = 47
+
 #
 # File Descriptors:
 #
@@ -90,6 +105,22 @@ fpCur = open (os.getenv('LOG_CUR'), 'a')
 # Experiment parsing reports
 expParsingFileName = os.environ['EXP_PARSING_RPT']
 fpExpParsingFile = None
+
+#
+# For bcp
+#
+
+bcpin = '%s/bin/bcpin.csh' % os.environ['PG_DBUTILS']
+server = os.environ['MGD_DBSERVER']
+database = os.environ['MGD_DBNAME']
+
+expt_table = 'GXD_HTExperiment'
+acc_table = 'ACC_Accession'
+exptvar_table = 'GXD_HTExperimentVariable'
+property_table = 'MGI_Property'
+sample_table = 'GXD_HTRawSample'
+keyvalue_table = 'MGI_KeyValue'
+outputDir = os.environ['OUTPUTDIR']
 
 #
 # BCP files
@@ -112,7 +143,7 @@ fpVariableBcp =  None
 propertyFileName = os.getenv('PROPERTY_FILENAME')
 fpPropertyBcp = None
 
-# for MGI_Property:
+# for MGI_Propertay (experiments)
 expTypePropKey = 20475425
 expFactorPropKey = 20475423
 sampleCountPropKey = 20475424
@@ -121,14 +152,26 @@ namePropKey = 20475428
 pubmedPropKey =	20475430 
 propTypeKey = 1002
 
+# For MGI_KeyValue (samples)
+# These are controlled column header values from the sample file
+# the unit and characteristic keys are not controlled therefor we take
+# what is in the file
+rawSourceKey = 'Source Name'
+rawEnaSampleKey = 'ENA_SAMPLE'
+rawBioSdSampleKey = 'BioSD_SAMPLE'
+rawExtractNameKey = 'Extract Name'
+
 # Number of experiments in AE json file
 exptCount = 0
 
 # Number experiments loaded
 exptLoadedCount = 0
 
-#Number of experiments already in the database
+# Number of experiments already in the database
 inDbCount = 0
+
+# Number of samples loaded for new experiments
+samplesLoadedCount = 0
 
 # Number of experiments in the db that had raw samples added
 updateExptCount = 0
@@ -172,9 +215,9 @@ exptTypeTransDict = {}
 #
 def initialize():
     global expIdDict, fpExpParsingFile
-    global fpInFile, fpExperimentBcp, fpAccBcp, fpVariableBcp 
+    global fpInFile, fpExperimentBcp, fpSampleBcp, fpAccBcp, fpVariableBcp 
     global fpPropertyBcp, fpKeyValueBcp, nextExptKey, nextAccKey
-    global nextExptVarKey, nextPropKey 
+    global nextExptVarKey, nextPropKey, nextRawSampleKey, nextKeyValueKey
 
     # create file descriptors
     try:
@@ -192,60 +235,60 @@ def initialize():
          print('Cannot create %s' % expParsingFileName)
 
     try:
-        fpExperimentBcp = open(experimentFileName, 'w')
+        fpExperimentBcp = open('%s/%s' % (outputDir, experimentFileName), 'w')
     except:
         print('Cannot create %s' % experimentFileName)
 
     try:
-        fpAccBcp = open(accFileName, 'w')
+        fpSampleBcp = open('%s/%s' % (outputDir, sampleFileName), 'w')
+    except:
+        print('Cannot create %s' % sampleFileName)
+
+    try:
+        fpAccBcp = open('%s/%s' % (outputDir, accFileName), 'w')
     except:
         print('Cannot create %s' % accFileName)
 
     try:
-        fpVariableBcp = open(variableFileName, 'w')
+        fpVariableBcp = open('%s/%s' % (outputDir, variableFileName), 'w')
     except:
         print('Cannot create %s' % variableFileName) 
 
     try:
-        fpPropertyBcp = open(propertyFileName, 'w')
+        fpPropertyBcp = open('%s/%s' % (outputDir, propertyFileName), 'w')
     except:
         print('Cannot create %s' % propertyFileName)
 
     try:
-        fpKeyValueBcp = open(keyValueFileName, 'w')
+        fpKeyValueBcp = open('%s/%s' % (outputDir, keyValueFileName), 'w')
     except:
         print('Cannot create %s' % keyValueFileName)
 
     db.useOneConnection(1)
 
-    # get next primary key for the Experiment table    
-    results = db.sql('''select max(_Experiment_key) + 1 as maxKey 
-        from GXD_HTExperiment''', 'auto')
-    if results[0]['maxKey'] == None:
-        nextExptKey = 1000
-    else:
-        nextExptKey  = results[0]['maxKey']
-
     # get next primary key for the Accession table
-    results = db.sql('''select max(_Accession_key) + 1 as maxKey 
-        from ACC_Accession''', 'auto')
+    results = db.sql('''select max(_Accession_key) + 1 as maxKey from ACC_Accession''', 'auto')
     nextAccKey  = results[0]['maxKey']
 
+    # get next primary key for the Experiment table
+    results = db.sql(''' select nextval('gxd_htexperiment_seq') as maxKey ''', 'auto')
+    nextExptKey  = results[0]['maxKey']
+
     # get next primary key for the ExperimentVariable table
-    results = db.sql('''select max(_ExperimentVariable_key) + 1 as maxKey 
-        from GXD_HTExperimentVariable''', 'auto')
-    if results[0]['maxKey'] == None:
-        nextExptVarKey = 1000
-    else:
-        nextExptVarKey  = results[0]['maxKey']
+    results = db.sql(''' select nextval('gxd_htexperimentvariable_seq') as maxKey ''', 'auto')
+    nextExptVarKey  = results[0]['maxKey']
+
+    # get next primary key for the Raw Sample table
+    results = db.sql(''' select nextval('gxd_htrawsample_seq') as maxKey ''', 'auto')
+    nextRawSampleKey = results[0]['maxKey']
+
+    # get next primary key for the Key Value table
+    results = db.sql(''' select nextval('mgi_keyvalue_seq') as maxKey ''', 'auto')
+    nextKeyValueKey = results[0]['maxKey']
 
     # get next primary key for the Property table
-    results = db.sql('''select max(_Property_key) + 1 as maxKey 
-        from MGI_Property''', 'auto')
-    if results[0]['maxKey'] == None:
-        nextPropKey = 1000
-    else:
-        nextPropKey  = results[0]['maxKey']
+    results = db.sql(''' select nextval('mgi_property_seq') as maxKey ''', 'auto')
+    nextPropKey  = results[0]['maxKey']
 
     # Create experiment ID lookup
     results = db.sql('''select accid, _Object_key
@@ -280,22 +323,22 @@ def processAll():
         currentExpFile = '%s/%s.json' % (inputDir, id)
         currentSampFile = '%s/%s.sdrf.txt' % (inputDir, id)
 
-        print('id: %s action: %s' % (id, action))
-        print('currentExpFile: %s' % currentExpFile)
-        print('currentSampFile:%s' % currentSampFile)
+        #print('id: %s action: %s' % (id, action))
+        #print('currentExpFile: %s' % currentExpFile)
+        #print('currentSampFile:%s' % currentSampFile)
 
         # Open file descriptors for Experiment and Sample 
         try:
             fpExpCurrent = open(currentExpFile, 'r')
         except:
-            print('Cannot open %s skipping experiment %s' % (currentExpFile, id)) 
+            print('Cannot open %s skipping experiment %s' % (currentExpFile, id))
             missingExptFileList.append('%s : Experiment File does not Exist' % id)
             continue
 
         try:
             fpSampCurrent = open(currentSampFile, 'r')
         except:
-            print('Cannot open %s skipping experiment %s' % (currentSampFile, id))
+            #print('Cannot open %s skipping experiment %s' % (currentSampFile, id))
             missingSampleFileList.append('%s : Sample File does not Exist' % id)
             fpExpCurrent.close()
             continue
@@ -305,26 +348,29 @@ def processAll():
         try:
             expJFile = json.load(fpExpCurrent)
         except:
-            print('File is empty %s skipping experiment %s' % (currentExpFile, id))
+            #print('File is empty %s skipping experiment %s' % (currentExpFile, id))
             missingExptFileList.append('%s : Experiment File is Empty' % id)
             closeInputFiles(fpExpCurrent, fpSampCurrent)            
             continue
 
         # process the experiment
         exptKey = processExperiment(expJFile) 
-        print('exptKey: %s' % exptKey)
+        #print('exptKey: %s' % exptKey)
 
         # processExperiment handles logging if there are issues processing 
         # if an experiment key is not returned, move on to the next expt.
         if exptKey == 0:
             closeInputFiles(fpExpCurrent, fpSampCurrent)
             continue
+        elif exptKey == -1: # for testing add mode only; ignore those in the database
+            print('ExptID: %s in the database, skipping for now' % id)
+            continue
 
         # process the samples
         rc = processSample(fpSampCurrent, id, exptKey)
         print('processSample rc: %s' % rc)
         if rc:
-            print('File is empty %s skipping samples for %s' % (currentSampFile, id))
+            #print('File is empty %s skipping samples for %s' % (currentSampFile, id))
             missingSampleFileList.append('%s : Sample File is Empty' % id)
             closeInputFiles(fpExpCurrent, fpSampCurrent)
             continue
@@ -338,7 +384,7 @@ def processExperiment(expJFile):
     global inDbCount
     global nextExptKey, nextAccKey, nextExptVarKey, nextPropKey
 
-    print('\nprocessExperiment')
+    currentExptKey = nextExptKey
     #
     # Process Experiment
     #
@@ -350,14 +396,18 @@ def processExperiment(expJFile):
     exptTypeKey = ''
     description = ''
     organism = ''
-    sampleNum = ''
+    sampleCount = ''
     authorList = []
     pubMedIdList = []
 
     exptID = expJFile['accno']
     print('processExperiment, exptID from file: %s' % exptID)
+    #TODO - Update mode - if in DB get the existing exptKey from the Dict and return it
     if exptID in primaryIdDict:
         inDbCount += 1
+        #return primaryIdDict[exptID]
+        #while working on add mode return -1 for existint
+        return -1
 
     attr = expJFile['attributes']
     #print('attr: %s\n' % attr)
@@ -374,20 +424,38 @@ def processExperiment(expJFile):
 
     sAttr = section['attributes']
     #print('sAttr: %s\n' % sAttr)
+    exptTypeList = []
+    organismList = []
     for a in sAttr:
         if a['name'] == 'Study type':
-            exptType = a['value']
+            exptTypeList.append(a['value'])
         elif a['name'] == 'Description':
             description  = a['value']
         elif a['name'] == 'Organism':
-            organism = a['value']
-    if exptType not in exptTypeTransDict:
-        invalidExptTypeDict[exptID] = exptType
-        return 0
+            organismList.append(str.lower(a['value']))
+    for eType in exptTypeList:
+        if eType in exptTypeTransDict:
+            exptType = eType
+            break
+    if exptType == '':
+            invalidExptTypeDict[exptID] = exptTypeList
+            return 0
     exptTypeKey = exptTypeTransDict[exptType]
 
-    if organism != MOUSE:
-        nonMouseDict[exptID] = organism
+    #print('organismList: %s' % organismList)
+    isMouse = 0
+    for org in organismList:
+        #print('org: %s' % org)
+        #if org == MOUSE:
+        if str.find(org, MOUSE) == 0:
+            #print('organism is Mus, load')
+            #organism == org
+            isMouse = 1
+            break
+    #if organism != MOUSE:
+    if not isMouse:
+        #print('organism is not Mus, skip: %s' % organism)
+        nonMouseDict[exptID] = organismList
         return 0
     subsections = section['subsections']
     for subs in subsections:
@@ -410,40 +478,96 @@ def processExperiment(expJFile):
                 sampleAttr = subs['attributes']
                 for t in sampleAttr:
                     if t['name'] == 'Sample count':
-                        sampleNum = t['value']
+                        sampleCount = t['value']
     fpExpParsingFile.write('%sReport Experiment Attributes%s' % (CRT, CRT))
-    fpExpParsingFile.write('id: %s%s' % (id, CRT))
+    fpExpParsingFile.write('exptID: %s%s' % (exptID, CRT))
     fpExpParsingFile.write('title :%s%s' % (title, CRT))
     fpExpParsingFile.write('relDate: %s%s' % (relDate, CRT))
-    fpExpParsingFile.write('exptType: %s%s' % (exptType, CRT))
+    fpExpParsingFile.write('exptType: %s%s' % (exptTypeList, CRT))
     fpExpParsingFile.write('description: %s%s' % (description, CRT))
-    fpExpParsingFile.write('organism:  %s%s' % (organism, CRT))
-    fpExpParsingFile.write('sampleNum: %s%s' % (sampleNum, CRT))
+    fpExpParsingFile.write('organism:  %s%s' % (organismList, CRT))
+    fpExpParsingFile.write('sampleCount: %s%s' % (sampleCount, CRT))
     fpExpParsingFile.write('authors: %s%s' % (authorList, CRT))
     fpExpParsingFile.write('PubMedIds: %s%s' % (pubMedIdList, CRT))
 
-    # write to bcp files
-    #if just samples (update):
-    # updateExptCount += 1
-    # if new experiments: 
+    #
+    # GXD_HTExperiment BCP
+    #
+
+    line = '%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (currentExptKey, TAB, sourceKey, TAB, title, TAB, description, TAB, relDate, TAB, updateDate, TAB, evalDate, TAB, defaultEvalStateTermKey, TAB, curStateTermKey, TAB, studyTypeTermKey, TAB, exptTypeKey, TAB, evalByKey, TAB, initCurByKey, TAB, lastCurByKey, TAB, initCurDate, TAB, lastCurDate, TAB, confidence, TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT)
+    #print('line: %s' % line)
+    fpExperimentBcp.write(line)
+
+    #
+    # GXD_HTVariable BCP
+    #
+    fpVariableBcp.write('%s%s%s%s%s%s' % (nextExptVarKey, TAB, currentExptKey, TAB, exptVariableTermKey, CRT))
+    nextExptVarKey += 1
+
+    #
+    # ACC_Accession BCP
+    #
+    prefixPart, numericPart = accessionlib.split_accnum(exptID)
+    fpAccBcp.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextAccKey, TAB, exptID, TAB, prefixPart, TAB, numericPart, TAB, aeLdbKey, TAB, currentExptKey, TAB, mgiTypeKey, TAB, private, TAB, isPreferred, TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT ))
+    nextAccKey += 1
+
+    #
+    # Experiment Properties
+    #
+
+    # title (1) experiment name
+    #   
+    # sampleCount(1) count of samples
+    #   
+    # exptTypeList (1-n) raw experiment types
+    #   
+    # pubMedIdList (0-n) pubmed Ids
+    #   
+    # description (1) sample overalldesign + expt summary
+    #   
+    # the template for properties:
+    propertyTemplate = "#====#%s%s%s#=#%s%s%s%s%s#==#%s#===#%s%s%s%s%s%s%s%s%s" % (TAB, propTypeKey, TAB, TAB, currentExptKey, TAB, mgiTypeKey, TAB, TAB, TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT )
+
+    if title != '':
+        toLoad = propertyTemplate.replace('#=#', str(namePropKey)).replace('#==#', title).replace('#===#', '1').replace('#====#', str(nextPropKey))
+        fpPropertyBcp.write(toLoad)
+        nextPropKey += 1
+
+    if sampleCount != '':
+        toLoad = propertyTemplate.replace('#=#', str(sampleCountPropKey)).replace('#==#', sampleCount).replace('#===#', '1').replace('#====#', str(nextPropKey))
+        fpPropertyBcp.write(toLoad)
+        nextPropKey += 1
+
+    seqNumCt = 1
+    for e in exptTypeList:
+        toLoad = propertyTemplate.replace('#=#', str(expTypePropKey)).replace('#==#', e).replace('#===#', str(seqNumCt)).replace('#====#', str(nextPropKey))
+        fpPropertyBcp.write(toLoad)
+        seqNumCt += 1
+        nextPropKey += 1
+
+    for b in pubMedIdList:
+        toLoad = propertyTemplate.replace('#=#', str(pubmedPropKey)).replace('#==#', str(b)).replace('#===#', str(seqNumCt)).replace('#====#', str(nextPropKey))
+        fpPropertyBcp.write(toLoad)
+        seqNumCt += 1
+        nextPropKey += 1
+
     nextExptKey += 1
-    #exptLoadedCount += 1
+    exptLoadedCount += 1
     
-    return nextExptKey
+    return currentExptKey 
 
 def processSample(fpSampFile, exptID, exptKey): 
+    global nextRawSampleKey, nextKeyValueKey, samplesLoadedCount
 
-    print('\nprocessSample')
+    print('processSample, exptID: %s' % exptID)
     headerLine = fpSampFile.readline()
        
-# START - here I need to check for empty file vs missing file
-# maybe get the function working first before worrying about this.
     # process the non positional header into data structures
     headerLine = str.strip(headerLine)
-    print('Header: %s' % headerLine)
+    
     if headerLine == '':
-        print('Empty file')
         return 1
+
     tokens = str.split(headerLine, TAB)
 
     allHeaderDict = {}
@@ -451,13 +575,13 @@ def processSample(fpSampFile, exptID, exptKey):
 
     for t in tokens:
         if str.find(t, 'Unit') == 0:
+            
             unitCharHeaderDict[t] = tokens.index(t)
         elif str.find(t, 'Characteristics') == 0:
             unitCharHeaderDict[t] = tokens.index(t)
         else:
             allHeaderDict[t] = tokens.index(t)
-    #print(unitCharHeaderDict)
-
+    
     # process the body of the file
     for line in fpSampFile.readlines():
 
@@ -465,7 +589,7 @@ def processSample(fpSampFile, exptID, exptKey):
         line = line[:-1] 
 
         tokens = str.split(line, TAB)
-        #print(tokens) 
+        
         fpExpParsingFile.write('%sReport Sample Named Attributes:%s' % (CRT, CRT))   
         try:
             index = allHeaderDict['Source Name'] 
@@ -482,7 +606,7 @@ def processSample(fpSampFile, exptID, exptKey):
             ena_sample = ''
             fpExpParsingFile.write('missing ena_sample%s' % CRT)
         try:
-            index = allHeaderDict['Comment[BioSD_SAMPLE']
+            index = allHeaderDict['Comment[BioSD_SAMPLE]']
             biosd_sample = tokens[index]
             fpExpParsingFile.write('biosd_sample: "%s" index: %s%s' % (biosd_sample, index, CRT))
         except:
@@ -509,9 +633,49 @@ def processSample(fpSampFile, exptID, exptKey):
 
         fpExpParsingFile.write('sampleID chosen: %s%s' % (sampleID, CRT))
         fpExpParsingFile.write('%sReport Sample Unit and Characteristic Attributes:%s' % (CRT, CRT))
+
+        # write to fpSampleBcp here
+        fpSampleBcp.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextRawSampleKey, TAB, exptKey, TAB, sampleID, TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT))
+        samplesLoadedCount += 1
+
+        # Mapping of controlled sample attributes (key) to their values by variable name
+        # rawSourceKey = 'Source Name' --> value = source_name
+        # rawEnaSampleKey = 'ENA_SAMPLE' --> value = ena_sample
+        # rawBioSdSampleKey = 'BioSD_SAMPLE' --> value = biosd_sample
+        # rawExtractNameKey = 'Extract Name' --> value = extract_name
+
+        if source_name != None and source_name != '':
+            fpKeyValueBcp.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextKeyValueKey, TAB, nextRawSampleKey, TAB, rawSampleMgiTypeKey, TAB, rawSourceKey, TAB, source_name, TAB, '1', TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT))
+            nextKeyValueKey += 1
+
+        if ena_sample != None and ena_sample != '':
+            fpKeyValueBcp.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextKeyValueKey, TAB, nextRawSampleKey, TAB, rawSampleMgiTypeKey, TAB, rawEnaSampleKey, TAB, ena_sample, TAB, '1', TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT))
+            nextKeyValueKey += 1
+
+        if biosd_sample != None and biosd_sample != '':
+            fpKeyValueBcp.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextKeyValueKey, TAB, nextRawSampleKey, TAB, rawSampleMgiTypeKey, TAB, rawBioSdSampleKey, TAB, biosd_sample, TAB, '1', TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT))
+            nextKeyValueKey += 1
+
+        if extract_name != None and extract_name != '':
+            fpKeyValueBcp.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextKeyValueKey, TAB, nextRawSampleKey, TAB, rawSampleMgiTypeKey, TAB, rawExtractNameKey, TAB, extract_name, TAB, '1', TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT))
+            nextKeyValueKey += 1
+
+        attrRE = re.compile("\[(.+)\]")
         for attr in unitCharHeaderDict:
+            
+            r = attrRE.search(attr)
+            key = r.group(1)
+            
             index = unitCharHeaderDict[attr]
-            fpExpParsingFile.write('%s: "%s" index: %s%s' % (attr, tokens[index], index, CRT)) 
+            value = tokens[index]
+            
+            fpExpParsingFile.write('%s: "%s" index: %s%s' % (attr, value, index, CRT))
+            if value != None and value != '':
+                fpKeyValueBcp.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextKeyValueKey, TAB, nextRawSampleKey, TAB, rawSampleMgiTypeKey, TAB, key, TAB, value, TAB, '1', TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT))
+                nextKeyValueKey += 1
+
+        nextRawSampleKey += 1
+
     return 0
 
 def writeQC():
@@ -521,9 +685,11 @@ def writeQC():
         (exptCount, CRT))
     fpCur.write('Number of experiments already in the database: %s%s' %\
          (inDbCount, CRT))
-    fpCur.write('Number of experiments loaded: %s%s' % \
+    fpCur.write('Number of new experiments loaded: %s%s' % \
         (exptLoadedCount, CRT))
-    fpCur.write('Number of experiments updated with Raw Samples: %s%s%s'\
+    fpCur.write('Number of raw samples loaded for new experiments: %s%s' % \
+        (samplesLoadedCount, CRT))
+    fpCur.write('Number of experiments updated with raw samples: %s%s%s'\
          % (updateExptCount, CRT, CRT))
 
     if len(missingExptFileList):
@@ -542,7 +708,7 @@ def writeQC():
 
 
     if len(invalidExptTypeDict):
-        fpCur.write('Experiments with Invalid Experiment Type,  experiments not loaded%s' % CRT)
+        fpCur.write('Experiments with No Valid Experiment Types,  experiments not loaded%s' % CRT)
         fpCur.write('--------------------------------------------------%s' % CRT)
 
         for id in invalidExptTypeDict:
@@ -593,6 +759,78 @@ def writeQC():
     return 0
 
 #
+# Purpose: executes bcp
+# Returns: non-zero if bcp error, else 0
+# Assumes:
+# Effects: executes bcp, writes to the database
+# Throws: Nothing
+#
+
+def doBCP():
+
+    bcpCmd = '%s %s %s %s %s %s "\\t" "\\n" mgd' % (bcpin, server, database, expt_table, outputDir, experimentFileName)
+    print('bcpCmd: %s' % bcpCmd)
+    rc = os.system(bcpCmd)
+
+    if rc:
+        return rc
+
+    bcpCmd = '%s %s %s %s %s %s "\\t" "\\n" mgd' % (bcpin, server, database, acc_table, outputDir, accFileName)
+    print('bcpCmd: %s' % bcpCmd)
+    rc = os.system(bcpCmd)
+
+    if rc:
+        return rc
+
+    bcpCmd = '%s %s %s %s %s %s "\\t" "\\n" mgd' % (bcpin, server, database, exptvar_table, outputDir, variableFileName)
+    print('bcpCmd: %s' % bcpCmd)
+    rc = os.system(bcpCmd)
+
+    if rc:
+        return rc
+
+    bcpCmd = '%s %s %s %s %s %s "\\t" "\\n" mgd' % (bcpin, server, database, property_table, outputDir, propertyFileName)
+    print('bcpCmd: %s' % bcpCmd)
+    rc = os.system(bcpCmd)
+
+    if rc:
+        return rc
+
+    bcpCmd = '%s %s %s %s %s %s "\\t" "\\n" mgd' % (bcpin, server, database, sample_table, outputDir, sampleFileName)
+    print('bcpCmd: %s' % bcpCmd)
+    rc = os.system(bcpCmd)
+
+    if rc:
+        return rc
+
+    bcpCmd = '%s %s %s %s %s %s "\\t" "\\n" mgd' % (bcpin, server, database, keyvalue_table, outputDir, keyValueFileName)
+    print('bcpCmd: %s' % bcpCmd)
+    rc = os.system(bcpCmd)
+    
+    if rc:
+        return rc
+
+    # update gxd_htexperiment_seq auto-sequence
+    db.sql(''' select setval('gxd_htexperiment_seq', (select max(_Experiment_key) from GXD_HTExperiment)) ''', None)
+
+    # update gxd_htexperimentvariable_seq auto-sequence
+    db.sql(''' select setval('gxd_htexperimentvariable_seq', (select max(_ExperimentVariable_key) from GXD_HTExperimentVariable)) ''', None)
+
+    # update gxd_htrawsample_seq auto-sequence
+    db.sql(''' select setval('gxd_htrawsample_seq', (select max(_RawSample_key) from GXD_HTRawSample)) ''', None)
+
+    # update mgi_keyvalue_seq auto-sequence
+    db.sql(''' select setval('mgi_keyvalue_seq', (select max(_KeyValue_key) from MGI_KeyValue)) ''', None)
+
+    # update mgi_property_seq auto-sequence
+    db.sql(''' select setval('mgi_property_seq', (select max(_Property_key) from MGI_Property)) ''', None)
+
+    if rc:
+        return rc
+
+    return 0
+
+#
 # Purpose: Close file descriptors
 # Returns: 1 if file does not exist or is not readable, else 0
 # Assumes: Nothing
@@ -608,13 +846,31 @@ def closeFiles():
     fpAccBcp.close()
     fpVariableBcp.close()
     fpPropertyBcp.close()
-
+    fpSampleBcp.close()
+    fpKeyValueBcp.close()
     return 0
 #
 # main
 #
+if initialize() != 0:
+    print("ae_htload failed initializing")
+    sys.exit(1)
 
-initialize()
-processAll()
-writeQC()
-closeFiles()
+if processAll() != 0:
+    print("ae_htload failed during processing")
+    closeFiles()
+    sys.exit(1)
+
+if writeQC() != 0:
+    print("ae_htload failed writing QC")
+    closeFiles()
+    sys.exit(1)
+
+if closeFiles() != 0:
+    print("ae_htload failed closing files")
+    sys.exit(1)
+
+if doBCP() != 0:
+   print("ae_htload failed doing BCP")
+   sys.exit(1)
+

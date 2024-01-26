@@ -136,8 +136,6 @@ def checkArgs ():
         sys.exit(1)
 
     inputFile = sys.argv[1]
-    print('checkArgs: %s' % inputFile)
-    print('sys.argv: %s' % sys.argv)
     return 0
 
 # end checkArgs() -------------------------------
@@ -176,16 +174,16 @@ def init ():
         from aeExpts a, gxd_htrawsample s
         where a._experiment_key = s._experiment_key''', 'auto')
 
-    print(len(results1))
+    #print(len(results1))
     for r in results1:
         exptsInDbList.append(r['exptID'])
-    print('len(exptsInDbList): %s' % len(exptsInDbList))
+    #print('len(exptsInDbList): %s' % len(exptsInDbList))
 
-    print(len(results2))
+    #print(len(results2))
     for r in results2:
         exptsInDbWithSampleList.append(r['exptID'])
 
-    print('len(exptsInDbWithSampleList): %s' % len(exptsInDbWithSampleList))
+    #print('len(exptsInDbWithSampleList): %s' % len(exptsInDbWithSampleList))
     db.useOneConnection(1)
 
 
@@ -333,7 +331,7 @@ def runQcChecks():
     lineNum = 0 
     while line:
         lineNum += 1
-        print('lineNum: %s line: %s' % (lineNum, line))
+        #print('lineNum: %s line: %s' % (lineNum, line))
 
         # check that the file has at least 2 columns
         if len(str.split(line, TAB)) < 2:
@@ -350,7 +348,7 @@ def runQcChecks():
             distinctIdList.append(exptID)
         else:
             dupeIDList.append('%s  %s' % (lineNum, line))
-
+            hasFatalErrors = 1 
         # for case insensitive QC
         action = str.lower(action)
 
@@ -358,7 +356,7 @@ def runQcChecks():
         # Col 1 - expt ID
         found = 0
         for p in exptPrefixList:
-            print('prefix: %s' % p)
+            #print('prefix: %s' % p)
             if str.find(exptID, p) != -1:
                 found = 1 
                 break
@@ -367,6 +365,7 @@ def runQcChecks():
             badIdList.append('%s  %s' % (lineNum, line))
             hasFatalErrors = 1    
             line = fpInput.readline()
+            hasFatalErrors = 1
             continue
 
         # Col 2 - action
@@ -388,7 +387,9 @@ def runQcChecks():
 
         # updates should not have raw samples in the database
         if action == 'update' and exptID in exptsInDbWithSampleList:
-            update
+            updateWithSamplesInDbList.append('%s  %s' % (lineNum, line))
+            hasFatalErrors = 1
+
         line = fpInput.readline()
     return 0
 
