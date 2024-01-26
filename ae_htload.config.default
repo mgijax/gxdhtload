@@ -45,6 +45,12 @@ MIRROR_LOG_FILE=${LOGDIR}/mirror_ae.log
 
 export INPUT_FILE_DEFAULT MIRROR_LOG_FILE
 
+# Full path to QC script
+
+LOAD_QC_SH=${GXDHTLOAD}/bin/exptQC.sh
+
+export LOAD_QC_SH
+
 BASE_EXP_URL="https://www.ebi.ac.uk/biostudies/api/v1/studies/"
 BASE_SAMP_URL="https://www.ebi.ac.uk/biostudies/files/"
 
