@@ -21,8 +21,8 @@ usage ()
 
 CURRENT_DIR=`pwd`
 
-#LOADDIR=/usr/local/mgi/live/dataload/gxdhtload
-LOADDIR=/home/sc/work/dataload/gxdhtload
+LOADDIR=/usr/local/mgi/live/dataload/gxdhtload
+#LOADDIR=/home/sc/work/dataload/gxdhtload
 
 CONFIG=${LOADDIR}/ae_htload.config
 
