@@ -118,6 +118,9 @@ addInDbList = []
 # update action and expt ID not in the db
 updateNotInDbList = []
 
+# update action, expt in DB with samples
+updateWithSamplesInDbList = []
+
 # 1 if any QC errors in the input file
 hasFatalErrors = 0
 
@@ -286,12 +289,12 @@ def writeReport():
         fpQcRpt.write(''.join(updateNotInDbList))
         fpQcRpt.write(CRT + 'Total: %s' % len(updateNotInDbList))
 
-    if len(exptsInDbWithSampleList):
+    if len(updateWithSamplesInDbList):
         fpQcRpt.write(CRT + CRT + str.center('Update Action, Experiment in Database with Samples',60) + CRT)
-        fpQcRpt.write('%-5s  %-20s%s' % ('Line#','Line', CRT))
+        fpQcRpt.write('%-5s  %-20s%s' % ('Line#','Experiment ID', CRT))
         fpQcRpt.write(5*'-' + '  ' + 20*'-' + CRT)
-        fpQcRpt.write(''.join(exptsInDbWithSampleList))
-        fpQcRpt.write(CRT + 'Total: %s' % len(exptsInDbWithSampleList))
+        fpQcRpt.write(''.join(updateWithSamplesInDbList))
+        fpQcRpt.write(CRT + 'Total: %s' % len(updateWithSamplesInDbList))
 
     return 0
 
@@ -326,7 +329,7 @@ def closeFiles ():
 def runQcChecks():
     global hasFatalErrors, distinctIdList, dupeIDList, addInDbList
     global missingColumnList, badActionList, badIdList, updateNotInDbList
-
+    global updateWithSamplesInDbList
     line = fpInput.readline()
     lineNum = 0 
     while line:
