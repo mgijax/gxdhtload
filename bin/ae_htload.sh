@@ -174,10 +174,10 @@ checkStatus ${STAT} "${GXDHTLOAD}/bin/ae_htload.py"
 #
 # Touch the "lastrun" file to note when the load was run.
 #
-#if [ ${STAT} = 0 ]
-#then
-#    touch ${LASTRUN_FILE}
-#fi
+if [ ${STAT} = 0 ]
+then
+    touch ${LASTRUN_FILE}
+fi
 
 #
 # run postload cleanup and email logs
