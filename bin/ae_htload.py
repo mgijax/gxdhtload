@@ -194,8 +194,6 @@ nonMouseDict = {}
 invalidSampleCountDict = {}
 # AE IDs that have invalid release and update dates
 # looks like {primaryID:date, ...}
-invalidReleaseDateDict = {}
-invalidUpdateDateDict = {}
 
 # database lookups
 
@@ -479,8 +477,7 @@ def processExperiment(expJFile):
                 for t in sampleAttr:
                     if t['name'] == 'Sample count':
                         sampleCount = t['value']
-    fpExpParsingFile.write('%sReport Experiment Attributes%s' % (CRT, CRT))
-    fpExpParsingFile.write('exptID: %s%s' % (exptID, CRT))
+    fpExpParsingFile.write('%sReport Experiment Attributes for "%s"%s' % (CRT, exptID, CRT))
     fpExpParsingFile.write('title :%s%s' % (title, CRT))
     fpExpParsingFile.write('relDate: %s%s' % (relDate, CRT))
     fpExpParsingFile.write('exptType: %s%s' % (exptTypeList, CRT))
@@ -581,7 +578,11 @@ def processSample(fpSampFile, exptID, exptKey):
             unitCharHeaderDict[t] = tokens.index(t)
         else:
             allHeaderDict[t] = tokens.index(t)
-    
+
+    # We need to collapse the sample attributes we want to load by the
+    # sampleID that was chosen, otherwise we will load duplicates.
+    sampleDict = {}
+
     # process the body of the file
     for line in fpSampFile.readlines():
 
@@ -590,39 +591,33 @@ def processSample(fpSampFile, exptID, exptKey):
 
         tokens = str.split(line, TAB)
         
-        fpExpParsingFile.write('%sReport Sample Named Attributes:%s' % (CRT, CRT))   
         try:
             index = allHeaderDict['Source Name'] 
             source_name = tokens[index]
-            fpExpParsingFile.write('source_name: "%s" index: %s%s' % (source_name, index, CRT))
         except:
             source_name = '' 
             fpExpParsingFile.write('missing source_name%s'% CRT)
         try:
             index = allHeaderDict['Comment[ENA_SAMPLE]']       
             ena_sample = tokens[index]
-            fpExpParsingFile.write('ena_sample: "%s" index: %s%s' % (ena_sample, index, CRT))
         except:
             ena_sample = ''
             fpExpParsingFile.write('missing ena_sample%s' % CRT)
         try:
             index = allHeaderDict['Comment[BioSD_SAMPLE]']
             biosd_sample = tokens[index]
-            fpExpParsingFile.write('biosd_sample: "%s" index: %s%s' % (biosd_sample, index, CRT))
         except:
             biosd_sample = ''
             fpExpParsingFile.write('missing biosd_sample%s' % CRT)
         try: 
             index = allHeaderDict['Extract Name']
             extract_name = tokens[index]
-            fpExpParsingFile.write('extract_name: "%s" index: %s%s' % (extract_name, index, CRT))
         except:
             extract_name = ''
             fpExpParsingFile.write('missing extract_name%s' % CRT)
 
         if ena_sample == '' and biosd_sample == '' and source_name == '':
             noSampleIdList.append(exptID)
-            fpExpParsingFile.write('No Sample ID, skipping sample:%s' % CRT)
             continue
         if ena_sample != '':
             sampleID = ena_sample
@@ -631,35 +626,26 @@ def processSample(fpSampFile, exptID, exptKey):
         else:
             sampleID = source_name
 
-        fpExpParsingFile.write('sampleID chosen: %s%s' % (sampleID, CRT))
-        fpExpParsingFile.write('%sReport Sample Unit and Characteristic Attributes:%s' % (CRT, CRT))
-
-        # write to fpSampleBcp here
-        fpSampleBcp.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextRawSampleKey, TAB, exptKey, TAB, sampleID, TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT))
-        samplesLoadedCount += 1
-
         # Mapping of controlled sample attributes (key) to their values by variable name
         # rawSourceKey = 'Source Name' --> value = source_name
         # rawEnaSampleKey = 'ENA_SAMPLE' --> value = ena_sample
         # rawBioSdSampleKey = 'BioSD_SAMPLE' --> value = biosd_sample
         # rawExtractNameKey = 'Extract Name' --> value = extract_name
 
+        attrList = []
+
         if source_name != None and source_name != '':
-            fpKeyValueBcp.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextKeyValueKey, TAB, nextRawSampleKey, TAB, rawSampleMgiTypeKey, TAB, rawSourceKey, TAB, source_name, TAB, '1', TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT))
-            nextKeyValueKey += 1
+            attrList.append(source_name)
 
         if ena_sample != None and ena_sample != '':
-            fpKeyValueBcp.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextKeyValueKey, TAB, nextRawSampleKey, TAB, rawSampleMgiTypeKey, TAB, rawEnaSampleKey, TAB, ena_sample, TAB, '1', TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT))
-            nextKeyValueKey += 1
+            attrList.append(ena_sample)
 
         if biosd_sample != None and biosd_sample != '':
-            fpKeyValueBcp.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextKeyValueKey, TAB, nextRawSampleKey, TAB, rawSampleMgiTypeKey, TAB, rawBioSdSampleKey, TAB, biosd_sample, TAB, '1', TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT))
-            nextKeyValueKey += 1
+            attrList.append(biosd_sample)
 
         if extract_name != None and extract_name != '':
-            fpKeyValueBcp.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextKeyValueKey, TAB, nextRawSampleKey, TAB, rawSampleMgiTypeKey, TAB, rawExtractNameKey, TAB, extract_name, TAB, '1', TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT))
-            nextKeyValueKey += 1
-
+            attrList.append(extract_name)
+        
         attrRE = re.compile("\[(.+)\]")
         for attr in unitCharHeaderDict:
             
@@ -667,13 +653,73 @@ def processSample(fpSampFile, exptID, exptKey):
             key = r.group(1)
             
             index = unitCharHeaderDict[attr]
-            value = tokens[index]
-            
-            fpExpParsingFile.write('%s: "%s" index: %s%s' % (attr, value, index, CRT))
+            value = str.strip(tokens[index])
             if value != None and value != '':
-                fpKeyValueBcp.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextKeyValueKey, TAB, nextRawSampleKey, TAB, rawSampleMgiTypeKey, TAB, key, TAB, value, TAB, '1', TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT))
-                nextKeyValueKey += 1
+                attrList.append('%s|%s' % (key, value))
+   
+        if sampleID not in sampleDict:
+            sampleDict[sampleID] = []
+        sampleDict[sampleID].append(attrList)
 
+    print('sampleDict: %s\n' % sampleDict)
+    #
+    # Now write to report and bcp
+    #
+    for sampleID in sampleDict:
+        if len(sampleDict[sampleID]) > 1:
+            print('> 1 set of sample attributes for %s: %s\n' % (sampleID, sampleDict[sampleID]))
+        # get the first list of sample attributes for this sample
+        samplesToWriteList = sampleDict[sampleID][0]
+        print('samplesToWriteList: %s\n' % samplesToWriteList)
+        # get the named attributes
+        namedSampleAttrList = samplesToWriteList[0:4]
+        print('namedSampleAttrList: %s\n' % namedSampleAttrList)
+        # get the unit and characteristic attributes
+        unitCharAttrList = samplesToWriteList[4:]
+        print('unitCharAttrList: %s\n' % unitCharAttrList)
+
+        # write to fpSampleBcp 
+        fpSampleBcp.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextRawSampleKey, TAB, exptKey, TAB, sampleID, TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT))
+        samplesLoadedCount += 1
+
+        #
+        # write Named attributes to parsing report and to bcp
+        #
+        fpExpParsingFile.write('%sReport Sample Attributes for "%s"/"%s"%s' % (CRT, exptID, sampleID, CRT))
+        source_name = namedSampleAttrList[0]
+        ena_sample = namedSampleAttrList[1]
+        biosd_sample = namedSampleAttrList[2]
+        extract_name = namedSampleAttrList[3]
+
+        # write to parsing report
+        fpExpParsingFile.write('source_name: "%s"%s' % (source_name, CRT))
+        fpExpParsingFile.write('ena_sample: "%s"%s' % (ena_sample, CRT))
+        fpExpParsingFile.write('biosd_sample: "%s"%s' % (biosd_sample, CRT))
+        fpExpParsingFile.write('extract_name: "%s"%s' % (extract_name, CRT))
+
+        # write to bcp
+        fpKeyValueBcp.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextKeyValueKey, TAB, nextRawSampleKey, TAB, rawSampleMgiTypeKey, TAB, rawSourceKey, TAB, source_name, TAB, '1', TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT))
+        nextKeyValueKey += 1
+
+        fpKeyValueBcp.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextKeyValueKey, TAB, nextRawSampleKey, TAB, rawSampleMgiTypeKey, TAB, rawEnaSampleKey, TAB, ena_sample, TAB, '1', TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT))
+        nextKeyValueKey += 1
+
+        fpKeyValueBcp.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextKeyValueKey, TAB, nextRawSampleKey, TAB, rawSampleMgiTypeKey, TAB, rawBioSdSampleKey, TAB, biosd_sample, TAB, '1', TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT))
+        nextKeyValueKey += 1
+
+        fpKeyValueBcp.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextKeyValueKey, TAB, nextRawSampleKey, TAB, rawSampleMgiTypeKey, TAB, rawExtractNameKey, TAB, extract_name, TAB, '1', TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT))
+        nextKeyValueKey += 1
+        
+        #
+        # write Unit and Characteristics attributes to parsing report and to bcp
+        #
+        #fpExpParsingFile.write('%sReport Sample Unit and Characteristic Attributes:%s' % (CRT, CRT))
+        for uca in unitCharAttrList:
+            (attr, value) = str.split(uca, '|')
+            fpExpParsingFile.write('%s: "%s"%s' % (attr, value, CRT))
+            fpKeyValueBcp.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextKeyValueKey, TAB, nextRawSampleKey, TAB, rawSampleMgiTypeKey, TAB, key, TAB, value, TAB, '1', TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT))
+            nextKeyValueKey += 1
+                
         nextRawSampleKey += 1
 
     return 0
@@ -731,22 +777,6 @@ def writeQC():
         for id in invalidSampleCountDict:
             fpCur.write('%s%s%s%s' %  (id, TAB, invalidSampleCountDict[id], CRT))
         fpCur.write('\nTotal: %s%s%s' % (len(invalidSampleCountDict), CRT, CRT))
-
-    if len(invalidReleaseDateDict):
-        fpCur.write('Experiments with Invalid Release Date%s' % CRT)
-        fpCur.write('ID%sRelease Date%s' % (TAB, CRT))
-        fpCur.write('--------------------------------------------------%s' % CRT)
-        for id in invalidReleaseDateDict:
-            fpCur.write('%s%s%s%s' %  (id, TAB, invalidReleaseDateDict[id], CRT))
-        fpCur.write('\nTotal: %s%s%s' % (len(invalidReleaseDateDict), CRT, CRT))
-
-    if len(invalidUpdateDateDict):
-        fpCur.write('Experiments with Invalid Update Date%s' % CRT)
-        fpCur.write('ID%sUpdate Date%s' % (TAB, CRT))
-        fpCur.write('--------------------------------------------------%s' % CRT)
-        for id in invalidUpdateDateDict:
-            fpCur.write('%s%s%s%s' %  (id, TAB, invalidUpdateDateDict[id], CRT))
-        fpCur.write('\nTotal: %s%s%s' % (len(invalidUpdateDateDict), CRT, CRT))
 
     if len(noSampleIdList):
         fpCur.write('Samples with no ID, sample not loaded%s' % CRT)
