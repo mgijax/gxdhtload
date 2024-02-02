@@ -715,8 +715,8 @@ def processSample(fpSampFile, exptID, exptKey):
         #
         #fpExpParsingFile.write('%sReport Sample Unit and Characteristic Attributes:%s' % (CRT, CRT))
         for uca in unitCharAttrList:
-            (attr, value) = str.split(uca, '|')
-            fpExpParsingFile.write('%s: "%s"%s' % (attr, value, CRT))
+            (key, value) = str.split(uca, '|')
+            fpExpParsingFile.write('%s: "%s"%s' % (key, value, CRT))
             fpKeyValueBcp.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextKeyValueKey, TAB, nextRawSampleKey, TAB, rawSampleMgiTypeKey, TAB, key, TAB, value, TAB, '1', TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT))
             nextKeyValueKey += 1
                 
