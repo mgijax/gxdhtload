@@ -903,7 +903,7 @@ if closeFiles() != 0:
     print("ae_htload failed closing files")
     sys.exit(1)
 
-#if doBCP() != 0:
-#   print("ae_htload failed doing BCP")
-#   sys.exit(1)
+if doBCP() != 0:
+   print("ae_htload failed doing BCP")
+   sys.exit(1)
 
