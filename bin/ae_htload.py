@@ -568,14 +568,16 @@ def processSample(fpSampFile, exptID, exptKey):
     tokens = str.split(headerLine, TAB)
 
     allHeaderDict = {}
-    unitCharHeaderDict = {}
+    unitCharFactorHeaderDict = {}
 
     for t in tokens:
         if str.find(t, 'Unit') == 0:
             
-            unitCharHeaderDict[t] = tokens.index(t)
+            unitCharFactorHeaderDict[t] = tokens.index(t)
         elif str.find(t, 'Characteristics') == 0:
-            unitCharHeaderDict[t] = tokens.index(t)
+            unitCharFactorHeaderDict[t] = tokens.index(t)
+        elif str.find(t, 'Factor Value') == 0:
+            unitCharFactorHeaderDict[t] = tokens.index(t)
         else:
             allHeaderDict[t] = tokens.index(t)
 
@@ -647,12 +649,12 @@ def processSample(fpSampFile, exptID, exptKey):
             attrList.append(extract_name)
         
         attrRE = re.compile("\[(.+)\]")
-        for attr in unitCharHeaderDict:
+        for attr in unitCharFactorHeaderDict:
             
             r = attrRE.search(attr)
             key = r.group(1)
             
-            index = unitCharHeaderDict[attr]
+            index = unitCharFactorHeaderDict[attr]
             value = str.strip(tokens[index])
             if value != None and value != '':
                 attrList.append('%s|%s' % (key, value))
@@ -675,8 +677,8 @@ def processSample(fpSampFile, exptID, exptKey):
         namedSampleAttrList = samplesToWriteList[0:4]
         print('namedSampleAttrList: %s\n' % namedSampleAttrList)
         # get the unit and characteristic attributes
-        unitCharAttrList = samplesToWriteList[4:]
-        print('unitCharAttrList: %s\n' % unitCharAttrList)
+        unitCharFactorAttrList = samplesToWriteList[4:]
+        print('unitCharFactorAttrList: %s\n' % unitCharFactorAttrList)
 
         # write to fpSampleBcp 
         fpSampleBcp.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextRawSampleKey, TAB, exptKey, TAB, sampleID, TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT))
@@ -711,10 +713,11 @@ def processSample(fpSampFile, exptID, exptKey):
         nextKeyValueKey += 1
         
         #
-        # write Unit and Characteristics attributes to parsing report and to bcp
+        # write Unit, Characteristics and Factor attributes to parsing report 
+        # and to BCP
         #
-        #fpExpParsingFile.write('%sReport Sample Unit and Characteristic Attributes:%s' % (CRT, CRT))
-        for uca in unitCharAttrList:
+
+        for uca in unitCharFactorAttrList:
             (key, value) = str.split(uca, '|')
             fpExpParsingFile.write('%s: "%s"%s' % (key, value, CRT))
             fpKeyValueBcp.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextKeyValueKey, TAB, nextRawSampleKey, TAB, rawSampleMgiTypeKey, TAB, key, TAB, value, TAB, '1', TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT))
@@ -900,7 +903,7 @@ if closeFiles() != 0:
     print("ae_htload failed closing files")
     sys.exit(1)
 
-if doBCP() != 0:
-   print("ae_htload failed doing BCP")
-   sys.exit(1)
+#if doBCP() != 0:
+#   print("ae_htload failed doing BCP")
+#   sys.exit(1)
 
