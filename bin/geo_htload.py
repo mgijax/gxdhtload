@@ -836,6 +836,8 @@ def processSamples(expID, inDb): # inDb 'true' or 'false'
                     description = ''
                 else:
                     description = ((str.strip(description)).replace(TAB, ' ')).replace(CRT, ' ')
+                    description = description.replace('\\', '')
+
             elif elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Title':
                 title = elem.text
                 if title == None:
