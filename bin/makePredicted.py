@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 '''
   Purpose:
            run sql to get unevaluated GEO experiments that need to be
