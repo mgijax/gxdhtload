@@ -17,7 +17,6 @@ import os
 import sys
 import types
 import re
-import Set
 import json
 import db
 import loadlib
@@ -31,7 +30,7 @@ MOUSE = 'mus'
 confidence = 0.0
 
 # mapping of exptID to action from the input file
-expIdDict = {}
+exptIdDict = {}
 
 # today's date
 loadDate = loadlib.loaddate
@@ -171,14 +170,18 @@ exptLoadedCount = 0
 inDbCount = 0
 
 # Number of samples loaded for new experiments
-samplesLoadedCount = 0
+newExptSamplesLoadedCount = 0
 
 # Number of experiments in the db that had raw samples added
 updateExptCount = 0
 
+# Number of experiments loaded for existing experiments
+existingExptSamplesLoadedCount = 0
+
 # list of experiment files found to be missing
 missingExptFileList = []
 missingSampleFileList = []
+emptySampleFileList = []
 
 # None of the 3 sample attributes we use to determine the sample id exist
 noSampleIdList = []
@@ -204,6 +207,24 @@ primaryIdDict = {}
 # raw experiment types mapped to controlled vocabulary keys
 exptTypeTransDict = {}
 
+class Experiment:
+    # Is: data object that represents an experiment 
+    # Has: an experiment ID and it's database key, either existing or new 
+    # Does: provides direct access to its attributes
+    #
+    def __init__ (self):
+        # Purpose: constructor
+        # Returns: nothing
+        # Assumes: nothing
+        # Effects: nothing
+        # Throws: nothing
+        self.id = None
+        self.key = None
+        self.existing = None
+        
+# end class Experiment -----------------------------------------
+
+
 #
 # Purpose:  Open file descriptors, get next primary keys, create lookups
 # Returns: 1 if file does not exist or is not readable, else 0
@@ -212,7 +233,7 @@ exptTypeTransDict = {}
 # Throws: Nothing
 #
 def initialize():
-    global expIdDict, fpExpParsingFile
+    global exptIdDict, fpExpParsingFile, exptCount
     global fpInFile, fpExperimentBcp, fpSampleBcp, fpAccBcp, fpVariableBcp 
     global fpPropertyBcp, fpKeyValueBcp, nextExptKey, nextAccKey
     global nextExptVarKey, nextPropKey, nextRawSampleKey, nextKeyValueKey
@@ -225,8 +246,8 @@ def initialize():
 
     for line in fpInFile.readlines():
         (exptID, action) = list(map(str.strip, str.split(line, TAB)))[:2]
-        expIdDict[exptID] = action
-
+        exptIdDict[exptID] = action
+    exptCount = len(exptIdDict)
     try:
         fpExpParsingFile = open(expParsingFileName, 'w')
     except:
@@ -308,6 +329,17 @@ def initialize():
     
     return 0
 
+# end initialize() -----------------------------------------
+
+
+#
+# Purpose: close input file descriptors only 
+# Returns: 1 if file does not exist or is not readable, else 0
+# Assumes: Nothing
+# Effects: closes file descriptors
+# Throws: Nothing
+#
+
 def closeInputFiles(expt, sample):
 
     expt.close()
@@ -315,9 +347,19 @@ def closeInputFiles(expt, sample):
 
     return 0
 
+# end closeInputFiles() -----------------------------------------
+
+#
+# Purpose: The main loop for processing experiments and samples 
+# Returns: 1 if runtime error, else 0
+# Assumes: Nothing
+# Effects: writes to logs, reports and bcp files
+# Throws: Nothing
+#
+
 def processAll():
-    for id in expIdDict:
-        action = expIdDict[id]
+    for id in exptIdDict:
+        action = exptIdDict[id]
         currentExpFile = '%s/%s.json' % (inputDir, id)
         currentSampFile = '%s/%s.sdrf.txt' % (inputDir, id)
 
@@ -329,14 +371,12 @@ def processAll():
         try:
             fpExpCurrent = open(currentExpFile, 'r')
         except:
-            print('Cannot open %s skipping experiment %s' % (currentExpFile, id))
             missingExptFileList.append('%s : Experiment File does not Exist' % id)
             continue
 
         try:
             fpSampCurrent = open(currentSampFile, 'r')
         except:
-            #print('Cannot open %s skipping experiment %s' % (currentSampFile, id))
             missingSampleFileList.append('%s : Sample File does not Exist' % id)
             fpExpCurrent.close()
             continue
@@ -347,29 +387,26 @@ def processAll():
             expJFile = json.load(fpExpCurrent)
         except:
             #print('File is empty %s skipping experiment %s' % (currentExpFile, id))
-            missingExptFileList.append('%s : Experiment File is Empty' % id)
+            missingExptFileList.append(id)
             closeInputFiles(fpExpCurrent, fpSampCurrent)            
             continue
 
         # process the experiment
-        exptKey = processExperiment(expJFile) 
-        #print('exptKey: %s' % exptKey)
+        experiment = processExperiment(expJFile)
 
         # processExperiment handles logging if there are issues processing 
         # if an experiment key is not returned, move on to the next expt.
-        if exptKey == 0:
+        if experiment.key == 0:
             closeInputFiles(fpExpCurrent, fpSampCurrent)
             continue
-        elif exptKey == -1: # for testing add mode only; ignore those in the database
-            print('ExptID: %s in the database, skipping for now' % id)
-            continue
 
+        print('exptID: %s exptKey: %s exptExisting: %s' % ( experiment.id, experiment.key, experiment.existing))
         # process the samples
-        rc = processSample(fpSampCurrent, id, exptKey)
+        rc = processSample(fpSampCurrent, experiment)
         print('processSample rc: %s' % rc)
         if rc:
             #print('File is empty %s skipping samples for %s' % (currentSampFile, id))
-            missingSampleFileList.append('%s : Sample File is Empty' % id)
+            emptySampleFileList.append(id)
             closeInputFiles(fpExpCurrent, fpSampCurrent)
             continue
 
@@ -377,16 +414,26 @@ def processAll():
 
     return 0
 
+# end processAll() -----------------------------------------
+
+#
+# Purpose: Processes an experiment
+# Returns: And Experiment object
+# Assumes: Nothing
+# Effects: Writes to logs, reports and bcp files
+# Throws: Nothing
+#
+
 def processExperiment(expJFile):
-    global exptCount, noSampleIdList, exptLoadedCount, nonMouseDict
-    global inDbCount
+    global noSampleIdList, exptLoadedCount, nonMouseDict
+    global inDbCount, exptUpdateCount
     global nextExptKey, nextAccKey, nextExptVarKey, nextPropKey
 
     currentExptKey = nextExptKey
+
     #
     # Process Experiment
     #
-    exptCount += 1
     exptID = ''
     title = ''
     relDate = ''
@@ -399,13 +446,18 @@ def processExperiment(expJFile):
     pubMedIdList = []
 
     exptID = expJFile['accno']
+    
     print('processExperiment, exptID from file: %s' % exptID)
-    #TODO - Update mode - if in DB get the existing exptKey from the Dict and return it
+    fpExpParsingFile.write('%sProcessing "%s"%s' % (CRT, exptID, CRT))
+    experiment = Experiment()
+    experiment.id = exptID
+
+    # if the experiment is in the database return the database key
     if exptID in primaryIdDict:
         inDbCount += 1
-        #return primaryIdDict[exptID]
-        #while working on add mode return -1 for existint
-        return -1
+        experiment.key = primaryIdDict[exptID]
+        experiment.existing = 1
+        return experiment
 
     attr = expJFile['attributes']
     #print('attr: %s\n' % attr)
@@ -437,7 +489,8 @@ def processExperiment(expJFile):
             break
     if exptType == '':
             invalidExptTypeDict[exptID] = exptTypeList
-            return 0
+            experiment.key = 0
+            return experiment
     exptTypeKey = exptTypeTransDict[exptType]
 
     #print('organismList: %s' % organismList)
@@ -454,7 +507,8 @@ def processExperiment(expJFile):
     if not isMouse:
         #print('organism is not Mus, skip: %s' % organism)
         nonMouseDict[exptID] = organismList
-        return 0
+        experiment.key = 0
+        return experiment
     subsections = section['subsections']
     for subs in subsections:
         if type(subs) != list:
@@ -550,11 +604,31 @@ def processExperiment(expJFile):
 
     nextExptKey += 1
     exptLoadedCount += 1
-    
-    return currentExptKey 
 
-def processSample(fpSampFile, exptID, exptKey): 
-    global nextRawSampleKey, nextKeyValueKey, samplesLoadedCount
+    # New experiment, return new experiment key
+    experiment.key = currentExptKey
+    experiment.existing = 0
+
+    return experiment
+
+# end processExperiment() -----------------------------------------
+
+#
+# Purpose: Processes all the samples for an experiment
+# Returns: 1 if there is no header line or if runtime error 
+# Assumes: Nothing
+# Effects: Writes to logs, reports and bcp files
+# Throws: Nothing
+#
+
+def processSample(fpSampFile, experiment): 
+    global nextRawSampleKey, nextKeyValueKey, updateExptCount
+    global newExptSamplesLoadedCount, existingExptSamplesLoadedCount
+
+    # unpack our experiment
+    exptID = experiment.id
+    exptKey = experiment.key
+    existing = experiment.existing
 
     print('processSample, exptID: %s' % exptID)
     headerLine = fpSampFile.readline()
@@ -580,7 +654,6 @@ def processSample(fpSampFile, exptID, exptKey):
             unitCharFactorHeaderDict[t] = tokens.index(t)
         else:
             allHeaderDict[t] = tokens.index(t)
-
     # We need to collapse the sample attributes we want to load by the
     # sampleID that was chosen, otherwise we will load duplicates.
     sampleDict = {}
@@ -590,32 +663,32 @@ def processSample(fpSampFile, exptID, exptKey):
 
         # remove the newline, don't trim whitespace as last column may be empty
         line = line[:-1] 
-
-        tokens = str.split(line, TAB)
         
+        source_name = ''
+        ena_sample = ''
+        biosd_sample = ''
+        extract_name = ''
+        tokens = str.split(line, TAB)
+
         try:
             index = allHeaderDict['Source Name'] 
             source_name = tokens[index]
         except:
-            source_name = '' 
             fpExpParsingFile.write('missing source_name%s'% CRT)
         try:
             index = allHeaderDict['Comment[ENA_SAMPLE]']       
             ena_sample = tokens[index]
         except:
-            ena_sample = ''
             fpExpParsingFile.write('missing ena_sample%s' % CRT)
-        try:
+        try: 
             index = allHeaderDict['Comment[BioSD_SAMPLE]']
             biosd_sample = tokens[index]
         except:
-            biosd_sample = ''
             fpExpParsingFile.write('missing biosd_sample%s' % CRT)
         try: 
             index = allHeaderDict['Extract Name']
             extract_name = tokens[index]
         except:
-            extract_name = ''
             fpExpParsingFile.write('missing extract_name%s' % CRT)
 
         if ena_sample == '' and biosd_sample == '' and source_name == '':
@@ -627,27 +700,22 @@ def processSample(fpSampFile, exptID, exptKey):
             sampleID = biosd_sample
         else:
             sampleID = source_name
-
+        
         # Mapping of controlled sample attributes (key) to their values by variable name
+        # Some of these may be empty string
+        #
         # rawSourceKey = 'Source Name' --> value = source_name
         # rawEnaSampleKey = 'ENA_SAMPLE' --> value = ena_sample
         # rawBioSdSampleKey = 'BioSD_SAMPLE' --> value = biosd_sample
         # rawExtractNameKey = 'Extract Name' --> value = extract_name
 
         attrList = []
-
-        if source_name != None and source_name != '':
-            attrList.append(source_name)
-
-        if ena_sample != None and ena_sample != '':
-            attrList.append(ena_sample)
-
-        if biosd_sample != None and biosd_sample != '':
-            attrList.append(biosd_sample)
-
-        if extract_name != None and extract_name != '':
-            attrList.append(extract_name)
-        
+        attrList.append(source_name)
+        attrList.append(ena_sample)
+        attrList.append(biosd_sample)
+        attrList.append(extract_name)
+       
+        # now add the unit, characteristics and factor key/values 
         attrRE = re.compile("\[(.+)\]")
         for attr in unitCharFactorHeaderDict:
             
@@ -658,12 +726,11 @@ def processSample(fpSampFile, exptID, exptKey):
             value = str.strip(tokens[index])
             if value != None and value != '':
                 attrList.append('%s|%s' % (key, value))
-   
+  
+        # map the attrList to it's sample id, there may be multiple? 
         if sampleID not in sampleDict:
             sampleDict[sampleID] = []
         sampleDict[sampleID].append(attrList)
-
-    print('sampleDict: %s\n' % sampleDict)
     #
     # Now write to report and bcp
     #
@@ -672,20 +739,23 @@ def processSample(fpSampFile, exptID, exptKey):
             print('> 1 set of sample attributes for %s: %s\n' % (sampleID, sampleDict[sampleID]))
         # get the first list of sample attributes for this sample
         samplesToWriteList = sampleDict[sampleID][0]
-        print('samplesToWriteList: %s\n' % samplesToWriteList)
+
         # get the named attributes
         namedSampleAttrList = samplesToWriteList[0:4]
-        print('namedSampleAttrList: %s\n' % namedSampleAttrList)
+
         # get the unit and characteristic attributes
         unitCharFactorAttrList = samplesToWriteList[4:]
-        print('unitCharFactorAttrList: %s\n' % unitCharFactorAttrList)
 
         # write to fpSampleBcp 
         fpSampleBcp.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextRawSampleKey, TAB, exptKey, TAB, sampleID, TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT))
-        samplesLoadedCount += 1
+        if existing == 0:
+            newExptSamplesLoadedCount += 1
+        else:
+            existingExptSamplesLoadedCount += 1
 
         #
-        # write Named attributes to parsing report and to bcp
+        # write Named attributes to parsing report and to bcp, if any are empty string
+        # skip it
         #
         fpExpParsingFile.write('%sReport Sample Attributes for "%s"/"%s"%s' % (CRT, exptID, sampleID, CRT))
         source_name = namedSampleAttrList[0]
@@ -693,30 +763,32 @@ def processSample(fpSampFile, exptID, exptKey):
         biosd_sample = namedSampleAttrList[2]
         extract_name = namedSampleAttrList[3]
 
-        # write to parsing report
-        fpExpParsingFile.write('source_name: "%s"%s' % (source_name, CRT))
-        fpExpParsingFile.write('ena_sample: "%s"%s' % (ena_sample, CRT))
-        fpExpParsingFile.write('biosd_sample: "%s"%s' % (biosd_sample, CRT))
-        fpExpParsingFile.write('extract_name: "%s"%s' % (extract_name, CRT))
-
-        # write to bcp
-        fpKeyValueBcp.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextKeyValueKey, TAB, nextRawSampleKey, TAB, rawSampleMgiTypeKey, TAB, rawSourceKey, TAB, source_name, TAB, '1', TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT))
-        nextKeyValueKey += 1
-
-        fpKeyValueBcp.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextKeyValueKey, TAB, nextRawSampleKey, TAB, rawSampleMgiTypeKey, TAB, rawEnaSampleKey, TAB, ena_sample, TAB, '1', TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT))
-        nextKeyValueKey += 1
-
-        fpKeyValueBcp.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextKeyValueKey, TAB, nextRawSampleKey, TAB, rawSampleMgiTypeKey, TAB, rawBioSdSampleKey, TAB, biosd_sample, TAB, '1', TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT))
-        nextKeyValueKey += 1
-
-        fpKeyValueBcp.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextKeyValueKey, TAB, nextRawSampleKey, TAB, rawSampleMgiTypeKey, TAB, rawExtractNameKey, TAB, extract_name, TAB, '1', TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT))
-        nextKeyValueKey += 1
         
-        #
-        # write Unit, Characteristics and Factor attributes to parsing report 
-        # and to BCP
-        #
+        # write to parsing report and bcp
+        if source_name:
+            fpExpParsingFile.write('source_name: "%s"%s' % (source_name, CRT))
+            fpKeyValueBcp.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextKeyValueKey, TAB, nextRawSampleKey, TAB, rawSampleMgiTypeKey, TAB, rawSourceKey, TAB, source_name, TAB, '1', TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT))
+            nextKeyValueKey += 1
 
+        if ena_sample:
+            fpExpParsingFile.write('ena_sample: "%s"%s' % (ena_sample, CRT))
+            fpKeyValueBcp.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextKeyValueKey, TAB, nextRawSampleKey, TAB, rawSampleMgiTypeKey, TAB, rawEnaSampleKey, TAB, ena_sample, TAB, '1', TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT))
+            nextKeyValueKey += 1
+
+        if biosd_sample:
+            fpExpParsingFile.write('biosd_sample: "%s"%s' % (biosd_sample, CRT))
+            fpKeyValueBcp.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextKeyValueKey, TAB, nextRawSampleKey, TAB, rawSampleMgiTypeKey, TAB, rawBioSdSampleKey, TAB, biosd_sample, TAB, '1', TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT))
+            nextKeyValueKey += 1
+
+        if extract_name:
+            fpExpParsingFile.write('extract_name: "%s"%s' % (extract_name, CRT))
+            fpKeyValueBcp.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextKeyValueKey, TAB, nextRawSampleKey, TAB, rawSampleMgiTypeKey, TAB, rawExtractNameKey, TAB, extract_name, TAB, '1', TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT))
+            nextKeyValueKey += 1
+
+        #
+        # write Unit, Characteristics and Factor attributes to parsing report i
+        # and to bcp
+        #
         for uca in unitCharFactorAttrList:
             (key, value) = str.split(uca, '|')
             fpExpParsingFile.write('%s: "%s"%s' % (key, value, CRT))
@@ -725,21 +797,37 @@ def processSample(fpSampFile, exptID, exptKey):
                 
         nextRawSampleKey += 1
 
+    # If the expeiment exists in the datase w/o samples, samples will be added
+    # which is an experiment update
+    if experiment.existing:
+        updateExptCount += 1
     return 0
 
-def writeQC():
-    fpCur.write(' ArrayExpress HT Data Load QC%s%s' % (CRT, CRT))
+# end processSample() -----------------------------------------
 
-    fpCur.write('Number of experiments in the input: %s%s' % \
+#
+# Purpose: Writes load QC to the curator log
+# Returns: non-zero if runtime error, else 0
+# Assumes: Nothing
+# Effects: Writes to the curator log
+# Throws: Nothing
+#
+
+def writeQC():
+    fpCur.write('ArrayExpress HT Data Load QC%s%s' % (CRT, CRT))
+
+    fpCur.write('Number of experiments in the input file: %s%s' % \
         (exptCount, CRT))
     fpCur.write('Number of experiments already in the database: %s%s' %\
          (inDbCount, CRT))
     fpCur.write('Number of new experiments loaded: %s%s' % \
         (exptLoadedCount, CRT))
     fpCur.write('Number of raw samples loaded for new experiments: %s%s' % \
-        (samplesLoadedCount, CRT))
-    fpCur.write('Number of experiments updated with raw samples: %s%s%s'\
-         % (updateExptCount, CRT, CRT))
+        (newExptSamplesLoadedCount, CRT))
+    fpCur.write('Number of existing experiments updated with raw samples: %s%s'\
+         % (updateExptCount, CRT))
+    fpCur.write('Number of raw samples loaded for existing experiments: %s%s%s' % \
+        (existingExptSamplesLoadedCount, CRT, CRT))
 
     if len(missingExptFileList):
         fpCur.write('Missing or Empty Experiment Files, experiments not loaded%s' % CRT)
@@ -749,12 +837,18 @@ def writeQC():
         fpCur.write('%sTotal: %s%s%s' % (CRT, len(missingExptFileList), CRT, CRT))
 
     if len(missingSampleFileList):
-        fpCur.write('Missing or Empty Sample Files, experiments not loaded%s' % CRT)
+        fpCur.write('Missing Sample Files. If add - experiments not loaded, if update - samples not loaded%s' % CRT)
         fpCur.write('--------------------------------------------------%s' % CRT)
         for file in missingSampleFileList:
             fpCur.write('%s%s' %  (file, CRT))
         fpCur.write('%sTotal: %s%s%s' % (CRT, len(missingSampleFileList), CRT, CRT))
 
+    if len(emptySampleFileList):
+        fpCur.write('Empty Sample Files. If add - experiments not loaded, if update - samples not loaded%s' % CRT)
+        fpCur.write('--------------------------------------------------%s' % CRT)
+        for file in emptySampleFileList:
+            fpCur.write('%s%s' %  (file, CRT))
+        fpCur.write('%sTotal: %s%s%s' % (CRT, len(emptySampleFileList), CRT, CRT))
 
     if len(invalidExptTypeDict):
         fpCur.write('Experiments with No Valid Experiment Types,  experiments not loaded%s' % CRT)
@@ -790,6 +884,8 @@ def writeQC():
 
 
     return 0
+
+# end writeQC() -----------------------------------------
 
 #
 # Purpose: executes bcp
@@ -863,6 +959,8 @@ def doBCP():
 
     return 0
 
+# end doBCP() -----------------------------------------
+
 #
 # Purpose: Close file descriptors
 # Returns: 1 if file does not exist or is not readable, else 0
@@ -882,6 +980,9 @@ def closeFiles():
     fpSampleBcp.close()
     fpKeyValueBcp.close()
     return 0
+
+# end closeFiles() -----------------------------------------
+
 #
 # main
 #
@@ -906,4 +1007,3 @@ if closeFiles() != 0:
 if doBCP() != 0:
    print("ae_htload failed doing BCP")
    sys.exit(1)
-
