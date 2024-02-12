@@ -53,7 +53,11 @@ headerSet = set([])
 def init():
     global fpIn, expIdList
 
-    fpIn = open(inputFile, 'r')
+    try:
+        fpIn = open(inputFile, 'r')
+    except:
+        print('%s does not exist' % inputFile)
+        sys.exit(1)
 
     for line in fpIn.readlines():
         (exptID, action) = list(map(str.strip, str.split(line, TAB)))[:2]
@@ -98,10 +102,9 @@ def process():
 
         # -nc no clobber - if the file exists, don't overwrite it
 
-        #cmd = 'wget -nc -O %s/%s %s' % (GEO_DOWNLOADS, file, url)
         # create experiment command and run it
+        cmd = 'wget -nc -O %s/%s %s' % (inputDir, smpFile, smpURL, )
 
-        cmd = 'wget -O %s/%s %s' % (inputDir, smpFile, smpURL, )
         print('cmd: %s' % cmd)
         result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
         stdout = result.stdout
@@ -120,40 +123,10 @@ def process():
         else:
             print('Sample file: %s successfully downloaded' % smpFile)
 
-#        cmd = 'cat %s | grep ^Source' % smpFile
-#        result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-#        header = result.stdout
-#        #print('header: %s' % header)
-#        tokens = str.split(header, TAB)
-#        for t in tokens:
-#           headerSet.add(str.strip(t))
-#    sortedSet = sorted(headerSet)
-#    for t in sortedSet:
-#        print(t)
-    return
-
-# From: 
-# reports_db/daily/MGI_Cov_Human_Gene.py
-# headers = []
-#for line in fpIn.readlines():
-#    line = str.strip(line)
-#    if str.find(line, '#') == 0: # ignore comments
-#        continue
-#    elif str.find(line, 'Taxon') == 0: # header
-#        headers = str.split(line, TAB)
-#        continue
-#
-#    tokens = str.split(line, TAB)
-#
-#    DBObjectID = tokens[headers.index('DBObjectID')]
-
-
-#for( all lines in file):
-#   value = line[headers["Header Name"]]
-
 ### main ###
 print('init')
 init()
+
 print('Number Ids to fetch: %s' % len(expIdList))
 print(expIdList)
 
