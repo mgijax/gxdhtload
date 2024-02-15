@@ -84,6 +84,9 @@ LOG=${LOG_FILE}
 rm -rf ${LOG}
 touch ${LOG}
 
+rm -rf ${MIRROR_LOG_CUR}
+touch  ${MIRROR_LOG_CUR}
+
 #
 #  Source the DLA library functions.
 #
@@ -140,15 +143,41 @@ then
     fi
 fi
 
+
+#
+#  run the file download
+#
+
+LOG=${MIRROR_LOG_FILE}
+rm -rf ${LOG}
+touch ${LOG}
+
+echo 'Running mirror_ae.py'  | tee -a ${LOG}
+date | tee -a ${LOG}
+${PYTHON} mirror_ae.py >> ${LOG}
+STAT=$?
+echo "STAT: ${STAT}"
+
+if [ ${STAT} -eq 1 ]
+then
+    checkStatus ${STAT} "An error occurred while downloading the experiment/sample files - See ${MIRROR_LOG_CUR} mirror_ae.sh"
+
+fi
+
+for i in `echo ${MAIL_LOG_CUR} | sed 's/,/ /g'`
+do
+    mailx -s "${MAIL_LOADNAME} - AE Experiment/Sample Download Curator Log" ${i} < ${MIRROR_LOG_CUR}
+done
+
 echo "" >> ${LOG_DIAG}
 date >> ${LOG_DIAG}
-echo "Run QC checks"  | tee -a ${LOG_DIAG}
+echo "Running QC checks"  | tee -a ${LOG_DIAG}
 ${GXDHTLOAD}/bin/exptQC.sh ${INPUT_FILE_DEFAULT} live
 STAT=$?
 
 if [ ${STAT} -eq 1 ]
 then
-    checkStatus ${STAT} "An error occurred while generating the QC reports - See ${QC_LOGFILE}. exptQC.sh"
+    checkStatus ${STAT} "An error occurred while generating the QC reports - See ${QC_LOGFILE} exptQC.sh"
 
     # run postload cleanup and email logs
     shutDown
