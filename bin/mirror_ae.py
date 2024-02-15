@@ -22,6 +22,8 @@ S = '%s'
 inputDir = os.getenv('INPUTDIR')
 inputFile =  os.getenv('INPUT_FILE_DEFAULT')
 
+curLogName = os.getenv('MIRROR_LOG_CUR')
+
 #
 # Create the path and file templates
 #
@@ -51,12 +53,19 @@ headerSet = set([])
 # example: ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE62nnn/GSE62608/miniml/GSE62608_family.xml.tgz
 
 def init():
-    global fpIn, expIdList
+    global fpIn, expIdList, fpCurLogFile
 
     try:
         fpIn = open(inputFile, 'r')
     except:
         print('%s does not exist' % inputFile)
+        sys.exit(1)
+
+    try:
+        fpCurLogFile = open(curLogName, 'a')  # append as this is started in mirror_ae.sh  
+        fpCurLogFile.write('%s%s%s' % (loadlib.loaddate, CRT, CRT))
+    except:
+        print('Cannot create %s' % curLogName)
         sys.exit(1)
 
     for line in fpIn.readlines():
@@ -89,8 +98,8 @@ def process():
         statusCode = result.returncode
 
         if statusCode != 0:
-            print('%sExperiment file: %s%s' % (CRT, expFile, CRT))
-            print('%s failed with exit code %s \nstderr %s' % (cmd, statusCode, stderr))
+            fpCurLogFile.write('%sExperiment file: %s%s' % (CRT, expFile, CRT))
+            fpCurLogFile.write('%s failed with exit code %s \nstderr %s' % (cmd, statusCode, stderr))
             print('Skipping %s' % (expFile))
 
             cmd = '/usr/bin/rm -f %s/%s ' % (inputDir, expFile)
@@ -111,9 +120,9 @@ def process():
         stderr = result.stderr
         statusCode = result.returncode
 
-        if statusCode != 0:
-            print('%sSample file: %s%s' % (CRT, smpFile, CRT))
-            print('%s failed with exit code %s \nstderr %s' % (cmd, statusCode, stderr))
+        if statusCode != 0 and str.find(stderr, 'already there') == -1:
+            fpCurLogFile.write('%sSample file: %s%s' % (CRT, smpFile, CRT))
+            fpCurLogFile.write('%s failed with exit code %s \nstderr %s' % (cmd, statusCode, stderr))
             print('Skipping %s' % (smpFile))
 
             cmd = '/usr/bin/rm -f %s/%s ' % (inputDir, smpFile)
@@ -122,6 +131,8 @@ def process():
             continue
         else:
             print('Sample file: %s successfully downloaded' % smpFile)
+            print('    %s' % stderr)
+            continue
 
 ### main ###
 print('init')
@@ -130,4 +141,8 @@ init()
 print('Number Ids to fetch: %s' % len(expIdList))
 print(expIdList)
 
+print('process')
 process()
+fpCurLogFile.write('%s%s%s' % (CRT, CRT, loadlib.loaddate))
+fpCurLogFile.close()
+
