@@ -5,6 +5,8 @@
 #
 #  Purpose:
 #       This script mirrors the experiment input files for the GEO gxdhtload
+#       It is a CONVENIENCE script so you may run the download separately from
+#       ae_htload.sh
 #
 #  Usage=mirror_ae.sh
 #
