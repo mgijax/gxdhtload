@@ -410,8 +410,6 @@ def processAll():
             closeInputFiles(fpExpCurrent, fpSampCurrent)
             continue
 
-    closeInputFiles(fpExpCurrent, fpSampCurrent)
-
     return 0
 
 # end processAll() -----------------------------------------
@@ -735,9 +733,8 @@ def processSample(fpSampFile, experiment):
     # Now write to report and bcp
     #
     for sampleID in sampleDict:
-        if len(sampleDict[sampleID]) > 1:
-            print('> 1 set of sample attributes for %s: %s\n' % (sampleID, sampleDict[sampleID]))
-        # get the first list of sample attributes for this sample
+        # get the first list of sample attributes for this sample, some samples have 
+        # multiple attributes (which we do not load) which means there are duplicate lines
         samplesToWriteList = sampleDict[sampleID][0]
 
         # get the named attributes
