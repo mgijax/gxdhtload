@@ -1,8 +1,8 @@
-<TITLE>GXD High Throughput GEO Load</TITLE>
+<TITLE>GXD High Throughput Loads</TITLE>
 
 <H1>GXD High Throughput GEO Load</H1>
 
-See <A HREF="http://mgiwiki/mediawiki/index.php/sw:Gxdhtload">GXD High Throughput Load Wiki </A> for input file format, report descriptions, processing algorithms, etc.
+See <A HREF="http://mgiwiki/mediawiki/index.php/sw:GEO_GXD_HT_Load">GEO Load Wiki </A> for input file format, report descriptions, processing algorithms, etc.
 
 <H3>Input</H3>
 <UL>
@@ -34,11 +34,49 @@ See <A HREF="http://mgiwiki/mediawiki/index.php/sw:Gxdhtload">GXD High Throughpu
 
 <H3>Reports</H3>
 <UL>
-<LI><A HREF="/data/loads/mgi/geo_htload/reports/geo_htload_qc.rpt">GXD HT Load QC Report</A>
-    <LI>Parsing reports used during development, but could come in handy
+<LI><A HREF="/data/loads/mgi/geo_htload/reports/geo_htload_qc.rpt">GEO QC Report - load stats</A>
+    <LI>Parsing reports 
         <UL>
         <LI> <A HREF="/data/loads/mgi/geo_htload/reports/geo_experiment_parsing.rpt">Experiment Parsing Report</A>
         <LI><A HREF="/data/loads/mgi/geo_htload/reports/geo_sample_parsing.rpt">Sample Parsing Report</A>
         <LI><A HREF="/data/loads/mgi/geo_htload/reports/geo_sample_in_db_parsing.rpt">Samples In Database Parsing Report</A>
         </UL>
 </UL>
+
+<H1>GXD High Throughput ArrayExpress Load</H1>
+
+See <A HREF="http://mgiwiki/mediawiki/index.php/sw:ArrayExpress_GXD_HT_Load"> ArrayExpress Load Wiki </A> for input file format, report descriptions, processing algorithms, etc.
+
+<H3>Input</H3>
+<UL>
+<LI><A HREF="/data/loads/mgi/ae_htload/input/">ArrayExpress Input Directory </A>
+    <UL>
+    <LI> experiment.txt - Connie's list of experiment IDs she would like loaded
+    <LI> <exptID>.json - the BioStudies experiment file for "exptID"
+    <LI> <exptID>.sdrf.txt - the BioStudies sample file for "exptID"
+    </UL>
+</UL>
+
+<H3>Output Files</H3>
+<UL>
+<LI><A HREF="/data/loads/mgi/ae_htload/output">BCP File directory</A>
+</UL>
+
+<H3>Logs</H3>
+<UL>
+<LI><A HREF="/data/loads/mgi/ae_htload/logs/mirror_ae.cur.log">Mirror Curator Log - files that could not be downloaded</A>
+<LI><A HREF="/data/loads/mgi/ae_htload/logs/mirror_ae.log"> Mirror Log - the wget commands for each file with the status of the download</A>
+<LI><A HREF="/data/loads/mgi/ae_htload/logs/ae_htload.proc.log">Process Log</A>
+<LI><A HREF="/data/loads/mgi/ae_htload/logs/ae_htload.diag.log">Diagnostic Log</A>
+<LI><A HREF="/data/loads/mgi/ae_htload/logs/ae_htload.cur.log">Curator Log - stats and list of any experiments that could not be loaded</A>
+
+</UL>
+
+<H3>Reports</H3>
+<UL>
+<LI><A HREF="/data/loads/mgi/ae_htload/reports/ae_htload_qc.rpt">ArrayExpress Curator File QC Report</A>
+<LI> <A HREF="/data/loads/mgi/ae_htload/reports/ae_experiment_parsing.rpt">Experiment Parsing Report</A>
+</UL>
+
+
+
