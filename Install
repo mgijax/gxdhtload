@@ -4,6 +4,7 @@
 # Installation script
 #
 # 1) cp geo_htload.config.default geo_htload.config
+# 2) cp ae_htload.config.default ae_htload.config
 # 3) Install 
 #
 
@@ -32,16 +33,16 @@ fi
 #
 cd `dirname $0`
 
-# establish the config files
-MAIN_CONFIG=geo_htload.config
+# establish the config file
+GEO_CONFIG=geo_htload.config
 
 # Make sure config file exists and source it
-if [ -r ${MAIN_CONFIG} ]
+if [ -r ${GEO_CONFIG} ]
 then
-    echo "Source ${MAIN_CONFIG}"
-    . ${MAIN_CONFIG}
+    echo "Source ${GEO_CONFIG}"
+    . ${GEO_CONFIG}
 else
-    echo "Cannot source configuration file: ${MAIN_CONFIG}"
+    echo "Cannot source configuration file: ${GEO_CONFIG}"
     installFailed
 fi
 
@@ -54,7 +55,7 @@ then
 fi
 
 #
-# run DLAInstall for each configuration file
+# run DLAInstall for GEO
 #
 echo 'running DLAINSTALL'
 ${DLAINSTALL} ${DEV}
@@ -67,8 +68,112 @@ then
     mkdir -p ${INPUTDIR}
 fi
 
-# create the experiment files archive if it doesn't exist
-if [ ! -d ${GEO_DOWNLOADS_ARCHIVE} ]
+# establish the config file
+AE_CONFIG=ae_htload.config
+
+# Make sure config file exists and source it
+if [ -r ${AE_CONFIG} ]
 then
-    mkdir -p ${GEO_DOWNLOADS_ARCHIVE}
+    echo "Source ${AE_CONFIG}"
+    . ${AE_CONFIG}
+else
+    echo "Cannot source configuration file: ${AE_CONFIG}"
+    installFailed
 fi
+
+# Check to see if this is a development installation
+#
+DEV=""
+if [ "${INSTALL_TYPE}" = "dev" ]
+then
+    DEV="-d"
+fi
+
+#
+# run DLAInstall for AE 
+#
+echo 'running DLAINSTALL'
+${DLAINSTALL} ${DEV}
+
+#
+# Create the input directory if it doesn't exist.
+#
+if [ ! -d ${INPUTDIR} ]
+then
+    mkdir -p ${INPUTDIR}
+fi
+
+#
+# For any server, if the input files do not exist already, create ones
+# that is writable. This is just a place holder until an input file is i
+# published and the QC run to create the load ready file. The input and output
+# directories are opened up to allow the curation staff to publish new input
+# files and run the QC script which creates the load ready file.
+#
+if [ ! -f ${INPUT_FILE_DEFAULT} ]
+then
+    touch ${INPUT_FILE_DEFAULT}
+    chmod 664 ${INPUT_FILE_DEFAULT}
+    chgrp mgi ${INPUT_FILE_DEFAULT}
+fi
+
+chmod -f 775 ${INPUTDIR}
+chgrp mgi ${INPUTDIR}
+
+if [ ! -f ${INPUT_FILE_QC} ]
+then
+    touch ${INPUT_FILE_QC}
+    chmod 664 ${INPUT_FILE_QC}
+    chgrp mgi ${INPUT_FILE_QC}
+fi
+
+chmod -f 775 ${OUTPUTDIR}
+chgrp mgi ${OUTPUTDIR}
+
+#
+# The DLAInstall script removes all permissions from shell scripts for
+# group "other" on non-development servers. The QC report wrapper
+# script needs to have permissions restored to allow the
+# curation staff to run it.
+#
+chmod -f 755 ${LOAD_QC_SH}
+
+# copy the scripts for curator use into a standard location which exists in
+# their path statements
+
+# trim any trailing slash from MGIBIN variable
+DEPLOY_PATH=`echo "${MGIBIN}" | sed 's./$..'`
+
+if [ "${DEPLOY_PATH}" = "" ]; then
+        echo "Warning: MGIBIN variable missing from mgiconfig; cannot deploy curator files"
+        exit 0
+fi
+
+if [ ! -d ${DEPLOY_PATH} ]; then
+        # failure to deploy is not a fatal error; could happen during
+        # development under a home directory
+        echo "Warning: ${DEPLOY_PATH} does not exist; curator scripts were not copied."
+        exit 0
+fi
+
+if [ -d ${DEPLOY_PATH} ]; then
+        # copy files, change permissions, and check for errors
+        # deployment errors are non-fatal, as they can occur regularly in an
+        # SE's development area
+
+        for file in runExptQC publishExpt
+        do
+                cp bin/${file} ${DEPLOY_PATH}
+                if [ $? -ne 0 ]; then
+                        echo "Warning: Failed to copy ${file} to ${DEPLOY_PATH}"
+                fi
+
+                chmod 755 ${DEPLOY_PATH}/${file}
+                if [ $? -ne 0 ]; then
+                        echo "Warning: Failed to change permissions on ${DEPLOY_PATH}/${file}"
+                fi
+        done
+        echo "Deployed curator files to ${DEPLOY_PATH}"
+fi
+exit 0
+
