@@ -15,7 +15,6 @@
 '''
 import os
 import sys
-import types
 import re
 import json
 import db
