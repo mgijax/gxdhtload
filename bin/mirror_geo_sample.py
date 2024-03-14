@@ -123,7 +123,10 @@ def process():
 
         # create command and run it
         # -nc no clobber - if the file exists, don't overwrite it
-        cmd = 'wget -nc -O %s/%s %s' % (GEO_DOWNLOADS, file, url)
+        # wts2-1369 - remove the -nc as we want new sample files each
+        # time we download to find samples added to an experiment
+        #cmd = 'wget -nc -O %s/%s %s' % (GEO_DOWNLOADS, file, url)
+        cmd = 'wget -O %s/%s %s' % (GEO_DOWNLOADS, file, url)
         print('cmd: %s' % cmd)
         result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
         stdout = result.stdout
