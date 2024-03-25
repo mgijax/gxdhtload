@@ -439,7 +439,6 @@ def process(expFile):
         if event=='end' and elem.tag == 'DocumentSummary':
             expCount += 1
             skip = 0
-            #print('\n\nexpID: %s' % expID)
             allExptIdList.append(expID)
 
             #
@@ -513,7 +512,6 @@ def process(expFile):
                         processSampleBcp(ret, updateExpKey)
 
             typeList = list(map(str.strip, gdsType.split(';')))
-
             if skip != 1:
                 (exptTypeKey, exptType) = processExperimentType(typeList)
                 if exptTypeKey == 0:
@@ -647,6 +645,7 @@ def process(expFile):
             exptTypeKey = 0
         
         if level == 4 : 
+            #print('In tag level 4')
             # Accession tag at level 4 tells us we have a new record
             if elem.tag == 'Accession':
                 expID = elem.text
@@ -722,10 +721,8 @@ def processExperimentType(typeList):
 def processSamples(expID, inDb): # inDb 'true' or 'false'
     global overallDesign
 
-    print('processSamples expID: %s inDB: %s' % (expID, inDb))
     sampleFile = '%s%s' % (expID, sampleFileSuffix)
     samplePath = '%s/%s' % (geoDownloads, sampleFile)
-    #print(samplePath)
 
     # if sample file does not exist return 1
     if not os.path.exists(samplePath):
@@ -748,8 +745,7 @@ def processSamples(expID, inDb): # inDb 'true' or 'false'
     taxidValue = ''
     treatmentProt = ''
     overallDesign = ''
-    channelDict = ''
-    channelList = ''
+
     # dictionary of key/values for the Channel section
     channelDict = {}
 
@@ -775,8 +771,6 @@ def processSamples(expID, inDb): # inDb 'true' or 'false'
         if event == 'end' and elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Sample':
             # if the dict is not empty, add it to the list
             if channelDict:
-                #print(channelDict)
-                #print('set second channel in channelList')
                 channelList.append(channelDict)
 
             # process the 1 or 2 channels for the current sample
@@ -800,22 +794,23 @@ def processSamples(expID, inDb): # inDb 'true' or 'false'
             #
             # reset all attributes
             #
-                sampleID = ''
-                description =  ''
-                title = ''
-                sType = ''
-                molecule = ''
-                taxid = ''
-                taxidValue = ''
-                treatmentProt = ''
-                overallDesign = ''
-                channelDict = {}
-                channelList = []
+            sampleID = ''
+            description =  ''
+            title = ''
+            sType = ''
+            molecule = ''
+            taxid = ''
+            taxidValue = ''
+            treatmentProt = ''
+            overallDesign = ''
+            channelDict = {}
+            channelList = []
 
         #
         # Tag Level 2
         #
         if level == 2:
+            #print('In tag level 2')
             if elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Sample':
                 sampleID = str.strip(elem.get('iid'))
             elif elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Overall-Design':
@@ -830,6 +825,7 @@ def processSamples(expID, inDb): # inDb 'true' or 'false'
         #
 
         if level == 3:
+            #print('In tag level 3')
             if elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Description':
                 description = elem.text
                 if description == None:
@@ -877,6 +873,7 @@ def processSamples(expID, inDb): # inDb 'true' or 'false'
         #
 
         if level == 4:
+            #print('In tag level 4')
             if elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Source':
                 source = elem.text
                 if source is not None and source != '':
