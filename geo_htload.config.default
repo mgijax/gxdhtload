@@ -40,7 +40,7 @@ INPUTDIR=${FILEDIR}/input
 
 export FILEDIR ARCHIVEDIR LOGDIR RPTDIR OUTPUTDIR INPUTDIR 
 
-QC_RPT=${RPTDIR}/geo_htload_qc.rpt
+QC_RPT=${RPTDIR}/geo_htload_qc
 EXP_PARSING_RPT=${RPTDIR}/geo_experiment_parsing.rpt
 SAMP_PARSING_RPT=${RPTDIR}/geo_sample_parsing.rpt
 SAMP_IN_DB_PARSING_RPT=${RPTDIR}/geo_sample_in_db_parsing.rpt
@@ -54,11 +54,6 @@ RUN_PARSING_RPTS=true
 MAX_SAMPLES=1000
 
 export RUN_PARSING_RPTS MAX_SAMPLES
-
-# set to true if you want to load samples for curated GEO experiments
-LOAD_SAMPLES_FOR_CURATED_GEO=true
-
-export LOAD_SAMPLES_FOR_CURATED_GEO
 
 # BCP file names
 EXPERIMENT_FILENAME=GXD_HTExperiment.bcp
