@@ -131,6 +131,7 @@ preload #${OUTPUTDIR}
 EXP_FILES=`ls ${GEO_DOWNLOADS}/geo.xml.*`
 export EXP_FILES
 
+echo "EXP_FILES: ${EXP_FILES}"
 #
 #  run the load
 #
@@ -138,6 +139,82 @@ echo 'Running geo_htload.py'  | tee -a ${LOG_DIAG}
 ${PYTHON} ${GXDHTLOAD}/bin/geo_htload.py >> ${LOG_DIAG}
 STAT=$?
 checkStatus ${STAT} "${GXDHTLOAD}/bin/geo_htload.py"
+
+#
+# Truncate the Raw Sample table
+#
+echo "" >> ${LOG}
+date >> ${LOG}
+echo "Truncate GXD_HTRawSample" | tee -a ${LOG}
+${MGD_DBSCHEMADIR}/table/GXD_HTRawSample_truncate.object
+echo "" >> ${LOG}
+
+#
+# run BCP
+#
+
+date >> ${LOG}
+echo "Load GXD_HTExperiment" | tee -a ${LOG}
+${PG_DBUTILS}/bin/bcpin.csh ${MGD_DBSERVER} ${MGD_DBNAME} GXD_HTExperiment ${OUTPUTDIR} GXD_HTExperiment.bcp "\t" "\n" mgd
+date >> ${LOG}
+
+echo "" >> ${LOG}
+date >> ${LOG}
+echo "Load ACC_Accession" | tee -a ${LOG}
+${PG_DBUTILS}/bin/bcpin.csh ${MGD_DBSERVER} ${MGD_DBNAME} ACC_Accession ${OUTPUTDIR} ACC_Accession.bcp "\t" "\n" mgd
+date >> ${LOG}
+
+echo "" >> ${LOG}
+date >> ${LOG}
+echo "Load GXD_HTExperimentVariable" | tee -a ${LOG}
+${PG_DBUTILS}/bin/bcpin.csh ${MGD_DBSERVER} ${MGD_DBNAME} GXD_HTExperimentVariable ${OUTPUTDIR} GXD_HTExperimentVariable.bcp "\t" "\n" mgd
+date >> ${LOG}
+
+echo "" >> ${LOG}
+date >> ${LOG}
+echo "Load MGI_Property" | tee -a ${LOG}
+${PG_DBUTILS}/bin/bcpin.csh ${MGD_DBSERVER} ${MGD_DBNAME} MGI_Property ${OUTPUTDIR} MGI_Property.bcp "\t" "\n" mgd
+date >> ${LOG}
+
+echo "" >> ${LOG}
+date >> ${LOG}
+echo "Load GXD_HTRawSample" | tee -a ${LOG}
+${PG_DBUTILS}/bin/bcpin.csh ${MGD_DBSERVER} ${MGD_DBNAME} GXD_HTRawSample ${OUTPUTDIR} GXD_HTRawSample.bcp "\t" "\n" mgd
+date >> ${LOG}
+
+echo "" >> ${LOG}
+date >> ${LOG}
+echo "Load MGI_KeyValue" | tee -a ${LOG}
+${PG_DBUTILS}/bin/bcpin.csh ${MGD_DBSERVER} ${MGD_DBNAME} MGI_KeyValue ${OUTPUTDIR} MGI_KeyValue.bcp "\t" "\n" mgd
+date >> ${LOG}
+
+#
+# Update autosequence
+# 
+
+echo "Updating auto-sequence" >>  ${LOG}
+cat - <<EOSQL | psql -h${MGD_DBSERVER} -d${MGD_DBNAME} -U mgd_dbo -e >> ${LOG_DIAG} 2>&1
+
+select setval('gxd_htexperiment_seq', (select max(_Experiment_key) from GXD_HTExperiment)) 
+;
+
+select setval('gxd_htexperimentvariable_seq', (select max(_ExperimentVariable_key) from GXD_HTExperimentVariable))
+;
+
+select setval('gxd_htrawsample_seq', (select max(_RawSample_key) from GXD_HTRawSample))
+;
+
+select setval('mgi_keyvalue_seq', (select max(_KeyValue_key) from MGI_KeyValue))
+;
+
+select setval('mgi_property_seq', (select max(_Property_key) from MGI_Property))
+;
+
+EOSQL
+
+#
+# Run the classifier
+#
 
 echo 'Running processPredicted.sh'  | tee -a ${LOG_DIAG}
 ${GXDHTLOAD}/bin/processPredicted.sh >> ${LOG_DIAG}
