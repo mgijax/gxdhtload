@@ -41,11 +41,16 @@ INPUTDIR=${FILEDIR}/input
 export FILEDIR ARCHIVEDIR LOGDIR RPTDIR OUTPUTDIR INPUTDIR 
 
 QC_RPT=${RPTDIR}/geo_htload_qc
+
+# This will get a date.rpt extension in the code
+CURATED_QC_RPT=${RPTDIR}/geo_htload_curated_qc
+
 EXP_PARSING_RPT=${RPTDIR}/geo_experiment_parsing.rpt
 SAMP_PARSING_RPT=${RPTDIR}/geo_sample_parsing.rpt
 SAMP_IN_DB_PARSING_RPT=${RPTDIR}/geo_sample_in_db_parsing.rpt
 
-export QC_RPT EXP_PARSING_RPT SAMP_PARSING_RPT SAMP_IN_DB_PARSING_RPT
+export QC_RPT CURATED_QC_RPT EXP_PARSING_RPT SAMP_PARSING_RPT 
+export SAMP_IN_DB_PARSING_RPT
 
 # set to true if you want to run the parsing reports
 RUN_PARSING_RPTS=true
@@ -53,7 +58,10 @@ RUN_PARSING_RPTS=true
 # max number of samples to load, if greater, skip experiment
 MAX_SAMPLES=1000
 
-export RUN_PARSING_RPTS MAX_SAMPLES
+# Date
+DATE=`date '+%Y-%m-%d'`
+
+export RUN_PARSING_RPTS MAX_SAMPLES DATE
 
 # BCP file names
 EXPERIMENT_FILENAME=GXD_HTExperiment.bcp
