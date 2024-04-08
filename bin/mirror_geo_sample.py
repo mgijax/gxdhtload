@@ -115,12 +115,6 @@ def process():
         #print('file: %s' % file)
         print(url)
 
-        # checked to see if the unzipped file exists, if it does don't unzip
-        isFile = os.path.isfile(unzipped)
-        if isFile:
-            print('Already exists: %s' % unzipped)
-            continue
-
         # create command and run it
         # -nc no clobber - if the file exists, don't overwrite it
         # wts2-1369 - remove the -nc as we want new sample files each
