@@ -538,7 +538,7 @@ def process(expFile):
     for event, elem in context:
         # end of a record - reset everything
         if event=='end' and elem.tag == 'DocumentSummary':
-            if DEBUG:
+            if DEBUG == 'true':
                 print('expID: %s' % expID)
             expCount += 1
             skip = 0
@@ -557,7 +557,7 @@ def process(expFile):
                 propertyUpdateTemplate = "#====#%s%s%s#=#%s#=====#%s%s%s#==#%s#===#%s%s%s%s%s%s%s%s%s" % (TAB, propTypeKey, TAB, TAB, TAB, exptMgiTypeKey, TAB, TAB, TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT )
                 skip = 1
                 expIdsInDbSet.add(expID)
-                if DEBUG:
+                if DEBUG == 'true':
                     print('expIdInDb skip')
 
                 # not all experiments have pubmed IDs in the database
@@ -597,7 +597,7 @@ def process(expFile):
                         nextPropKey += 1
 
                 # if there's no raw sample data for the existing experiment, add it
-                if DEBUG:
+                if DEBUG == 'true':
                     print('processing samples')
                 ret =  processSamples(expID, 'true') # 1, 2 or a list of sample info
                 if ret == 1:
@@ -609,7 +609,7 @@ def process(expFile):
                      # only add samples if <= the configured max samples
                      sampleList = ret
                      #if len(sampleList) <= maxSamples:
-                     print('sampleList: %s' % sampleList)
+                     #print('sampleList: %s' % sampleList)
                      processSampleBcp(sampleList, updateExpKey)
              
             # -- end "if expID in geoExptInDbDict:" ------------------------------
@@ -737,7 +737,7 @@ def process(expFile):
             exptTypeKey = 0
         
         if level == 4 : 
-            if DEBUG:
+            if DEBUG == 'true':
                 print('process experiment In tag level 4')
             # Accession tag at level 4 tells us we have a new record
             if elem.tag == 'Accession':
@@ -900,7 +900,7 @@ def processSamples(expID, inDb): # inDb 'true' or 'false'
         # Tag Level 2
         #
         if level == 2:
-            if DEBUG:
+            if DEBUG == 'true':
                 print('processSample tag level 2')
             if elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Sample':
                 sampleID = str.strip(elem.get('iid'))
@@ -924,7 +924,7 @@ def processSamples(expID, inDb): # inDb 'true' or 'false'
         #
 
         if level == 3:
-            if DEBUG:
+            if DEBUG == 'true':
                 print('processSample tag level 3')
             if elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Description':
                 description = elem.text
@@ -974,7 +974,7 @@ def processSamples(expID, inDb): # inDb 'true' or 'false'
         #
 
         if level == 4:
-            if DEBUG:
+            if DEBUG == 'true':
                 print('processSample tag level 4')
             if elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Source':
                 source = elem.text
@@ -993,7 +993,7 @@ def processSamples(expID, inDb): # inDb 'true' or 'false'
                 
                 if treatmentProt is not None and treatmentProt != '':
                     treatmentProt = ((str.strip(treatmentProt)).replace(TAB, ' ')).replace(CRT, ' ')
-                    if DEBUG:
+                    if DEBUG == 'true':
                         print('adding to channelDict expID: %s sampleID: %s treatmentProt: %s' % (expID, sampleID, treatmentProt))
                     channelDict['treatmentProt'] = treatmentProt
             elif elem.tag == '{http://www.ncbi.nlm.nih.gov/geo/info/MINiML}Molecule':
@@ -1067,7 +1067,7 @@ def processSampleBcp(sampleList, # list of samples for current experiment
     expID = ''
     for sampleString in sampleList:
         sampleLoadedCount += 1
-        if DEBUG:
+        if DEBUG == 'true':
             print('sampleString: %s' % sampleString)
 
         expID, sampleID, description, title, sType, channelString = str.split(sampleString, TAB) 
@@ -1204,10 +1204,31 @@ def writeQC():
     orphanSet = expIdsInDbSet.difference(allExptIdSet)
 
     # the curated experiment report    
-    fpCuratedQcFile.write('Number of curated experiments with updated samples (gains/losses):%s%s%s' % \
+    fpCuratedQcFile.write('* Number of curated experiments with updated samples (gains/losses):%s%s%s' % \
          (len(curSampleGainLossList), CRT, CRT))
     gainLossString = CRT.join(curSampleGainLossList)
     fpCuratedQcFile.write('%s%s%s' % (gainLossString, CRT, CRT))
+
+    fpCuratedQcFile.write('* Number of non-curated experiments with updated samples (gains/losses):%s%s%s' % \
+         (len(ncSampleGainLossList), CRT, CRT))
+    gainLossString = CRT.join(ncSampleGainLossList)
+    fpCuratedQcFile.write('%s%s%s' % (gainLossString, CRT, CRT))
+
+    fpCuratedQcFile.write('* Net gain/loss of samples curated and non-curated gainedCt %s - lostCt %s: %s%s%s' % (gainedCt, lostCt, gainedCt - lostCt, CRT, CRT))
+
+    # for debugging
+    fpCuratedQcFile.write('* Gained samples for experiments in the database curated and non-curated: %s%s%s' % (gainedCt, CRT, CRT))
+    for eId in gainedSampleDict:
+        sSet = gainedSampleDict[eId]
+        for sId in sSet:
+            fpCuratedQcFile.write('   %s:%s%s' %  (eId, sId, CRT))
+
+    # for debugging
+    fpCuratedQcFile.write('* Lost samples for experiments in the database curated and non-curated: %s%s%s ' % (lostCt, CRT, CRT))
+    for eId in lostSampleDict:
+        sSet = lostSampleDict[eId]
+        for sId in sSet:
+            fpCuratedQcFile.write('   %s:%s%s' %  (eId, sId, CRT))
 
     # the load report
     fpQcFile.write('GEO HT Raw Data Load QC%s%s%s' % (CRT, CRT, CRT))
@@ -1228,27 +1249,6 @@ def writeQC():
 
     fpQcFile.write('* Number of raw samples loaded: %s%s%s' % \
         (sampleLoadedCount, CRT, CRT))
-
-    fpQcFile.write('* Number of non-curated experiments with updated samples (gains/losses):%s%s%s' % \
-         (len(ncSampleGainLossList), CRT, CRT))
-    gainLossString = CRT.join(ncSampleGainLossList)
-    fpQcFile.write('%s%s%s' % (gainLossString, CRT, CRT))
-
-    fpQcFile.write('* Net gain/loss of samples curated and non-curated gainedCt %s - lostCt %s: %s%s%s' % (gainedCt, lostCt, gainedCt - lostCt, CRT, CRT))
-
-    # for debugging
-    fpQcFile.write('* Gained samples for experiments in the database curated and non-curated: %s%s%s ' % (gainedCt, CRT, CRT))
-    for eId in gainedSampleDict:
-        sSet = gainedSampleDict[eId]
-        for sId in sSet:
-            fpQcFile.write('   %s:%s%s' %  (eId, sId, CRT))
-
-    # for debugging
-    fpQcFile.write('* Lost samples for experiments in the database curated and non-curated: %s%s%s ' % (lostCt, CRT, CRT))
-    for eId in lostSampleDict:
-        sSet = lostSampleDict[eId]
-        for sId in sSet:
-            fpQcFile.write('   %s:%s%s' %  (eId, sId, CRT))
 
     fpQcFile.write('* Number experiments skipped, not already in db. Type not in translation: %s%s%s' % \
         (len(expSkippedNotInDbNoTransSet), CRT, CRT))
@@ -1292,6 +1292,7 @@ def writeQC():
 def closeFiles():
 
     fpQcFile.close()
+    fpCuratedQcFile.close()
     fpExpParsingFile.close()
     fpSampParsingFile.close()
     fpSampInDbParsingFile.close()
@@ -1301,7 +1302,7 @@ def closeFiles():
     fpAccBcp.close()
     fpVariableBcp.close()
     fpPropertyBcp.close()
-
+    
     return 0
 #
 # main
