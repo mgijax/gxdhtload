@@ -106,14 +106,14 @@ geoDownloads = os.environ['GEO_DOWNLOADS']
 sampleFileSuffix = os.environ['GEO_SAMPLE_FILE_SUFFIX']
 
 # QC file and descriptor
-qcFileName = os.environ['QC_RPT']
+today = date.today()
+suffix  = '%s.rpt' % today.strftime("%b-%d-%Y")
+
+qcFileName = '%s.%s' % (os.environ['QC_RPT'], suffix)
 fpQcFile = None
 
 # report of gained/lost samples for curated experiments
-today = date.today()
-suffix  = '%s.rpt' % today.strftime("%b-%d-%Y")
 curatedQcFileName = '%s.%s' % (os.environ['CURATED_QC_RPT'], suffix)
-print('curatedQcFileName: %s' % curatedQcFileName)
 fpCuratedQcFile = None
 
 # Experiment parsing reports
@@ -205,10 +205,6 @@ pubMedByExptDict = {}
 # experiment IDs in the input found to be in the database
 expIdsInDbSet = set()
 
-# geo experiment IDs in the database w/o raw samples
-# LATER REMOVE THIS ?
-geoNoRawSampleDict = {}
-
 #
 # data structures for load QC reporting
 #
@@ -268,7 +264,7 @@ def initialize():
     global fpExperimentBcp, fpSampleBcp, fpKeyValueBcp, pubMedByExptDict
     global fpAccBcp, fpVariableBcp, fpPropertyBcp, nextExptKey
     global nextAccKey, nextExptVarKey, nextPropKey, geoExptInDbDict
-    global nextRawSampleKey, nextKeyValueKey, geoNoRawSampleDict
+    global nextRawSampleKey, nextKeyValueKey
     global totalRawSampleCount, curatedExptDict, nonCuratedExptDict
     global fpCuratedQcFile
 
@@ -369,19 +365,6 @@ def initialize():
     for r in results:
         geoExptInDbDict[r['accid']] = r['_experiment_key']
 
-# LATER REMOVE THIS lookup do we need to check if samples in db
-# if we are truncating the raw sample table?
-
-    db.sql('''create index idx_geo on geo(_experiment_key)''', None)
-    results = db.sql('''select e.*
-        from geo e
-        where not exists  (select 1
-        from gxd_htrawsample s
-        where e._experiment_key = s._experiment_key)''', 'auto')
-
-    for r in results:
-        geoNoRawSampleDict[r['accid']] = r['_experiment_key']
-#####
     # Create experiment type translation lookup
     results = db.sql('''select badname, _Object_key
         from MGI_Translation
@@ -1239,7 +1222,10 @@ def writeQC():
     fpQcFile.write('* Number of experiments loaded: %s%s%s' % \
         (exptLoadedCount, CRT, CRT))
 
-    fpQcFile.write('* Number of experiments in the database, but not in GEO: %s%s%s' % \
+    fpQcFile.write('* Number experiments, already in DB: %s%s%s' % \
+        (len(geoExptInDbDict), CRT, CRT))
+
+    fpQcFile.write('* Number of experiments in the database, but withdrawn/private in GEO: %s%s%s' % \
         (len(orphanSet), CRT, CRT))
     idList = CRT.join(str(s) for s in orphanSet)
     fpQcFile.write('%s%s%s' % (idList, CRT, CRT))
