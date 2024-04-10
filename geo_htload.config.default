@@ -40,7 +40,7 @@ INPUTDIR=${FILEDIR}/input
 
 export FILEDIR ARCHIVEDIR LOGDIR RPTDIR OUTPUTDIR INPUTDIR 
 
-QC_RPT=${RPTDIR}/geo_htload_qc
+QC_RPT=${RPTDIR}/geo_htload_qc.rpt
 
 # This will get a date.rpt extension in the code
 CURATED_QC_RPT=${RPTDIR}/geo_htload_curated_qc
