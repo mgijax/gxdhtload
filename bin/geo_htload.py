@@ -1192,26 +1192,28 @@ def writeQC():
     gainLossString = CRT.join(curSampleGainLossList)
     fpCuratedQcFile.write('%s%s%s' % (gainLossString, CRT, CRT))
 
-    fpCuratedQcFile.write('* Number of non-curated experiments with updated samples (gains/losses):%s%s%s' % \
-         (len(ncSampleGainLossList), CRT, CRT))
-    gainLossString = CRT.join(ncSampleGainLossList)
-    fpCuratedQcFile.write('%s%s%s' % (gainLossString, CRT, CRT))
+    if DEBUG == 'true':
+        # for debugging
+        fpCuratedQcFile.write('* Number of non-curated experiments with updated samples (gains/losses):%s%s%s' % \
+             (len(ncSampleGainLossList), CRT, CRT))
+        gainLossString = CRT.join(ncSampleGainLossList)
+        fpCuratedQcFile.write('%s%s%s' % (gainLossString, CRT, CRT))
 
-    fpCuratedQcFile.write('* Net gain/loss of samples curated and non-curated gainedCt %s - lostCt %s: %s%s%s' % (gainedCt, lostCt, gainedCt - lostCt, CRT, CRT))
+        fpCuratedQcFile.write('* Net gain/loss of samples curated and non-curated gainedCt %s - lostCt %s: %s%s%s' % (gainedCt, lostCt, gainedCt - lostCt, CRT, CRT))
 
-    # for debugging
-    fpCuratedQcFile.write('* Gained samples for experiments in the database curated and non-curated: %s%s%s' % (gainedCt, CRT, CRT))
-    for eId in gainedSampleDict:
-        sSet = gainedSampleDict[eId]
-        for sId in sSet:
-            fpCuratedQcFile.write('   %s:%s%s' %  (eId, sId, CRT))
+        # for debugging
+        fpCuratedQcFile.write('* Gained samples for experiments in the database curated and non-curated: %s%s%s' % (gainedCt, CRT, CRT))
+        for eId in gainedSampleDict:
+            sSet = gainedSampleDict[eId]
+            for sId in sSet:
+                fpCuratedQcFile.write('   %s:%s%s' %  (eId, sId, CRT))
 
-    # for debugging
-    fpCuratedQcFile.write('* Lost samples for experiments in the database curated and non-curated: %s%s%s ' % (lostCt, CRT, CRT))
-    for eId in lostSampleDict:
-        sSet = lostSampleDict[eId]
-        for sId in sSet:
-            fpCuratedQcFile.write('   %s:%s%s' %  (eId, sId, CRT))
+        # for debugging
+        fpCuratedQcFile.write('* Lost samples for experiments in the database curated and non-curated: %s%s%s ' % (lostCt, CRT, CRT))
+        for eId in lostSampleDict:
+            sSet = lostSampleDict[eId]
+            for sId in sSet:
+                fpCuratedQcFile.write('   %s:%s%s' %  (eId, sId, CRT))
 
     # the load report
     fpQcFile.write('GEO HT Raw Data Load QC%s%s%s' % (CRT, CRT, CRT))
