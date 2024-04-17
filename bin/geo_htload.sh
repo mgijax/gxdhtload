@@ -188,6 +188,12 @@ echo "Load MGI_KeyValue" | tee -a ${LOG}
 ${PG_DBUTILS}/bin/bcpin.csh ${MGD_DBSERVER} ${MGD_DBNAME} MGI_KeyValue ${OUTPUTDIR} MGI_KeyValue.bcp "\t" "\n" mgd
 date >> ${LOG}
 
+echo "" >> ${LOG}
+date >> ${LOG}
+echo "Load MGI_Note" | tee -a ${LOG}
+${PG_DBUTILS}/bin/bcpin.csh ${MGD_DBSERVER} ${MGD_DBNAME} MGI_Note ${OUTPUTDIR} MGI_Note.bcp "\t" "\n" mgd
+date >> ${LOG}
+
 #
 # Update autosequence
 # 
@@ -208,6 +214,9 @@ select setval('mgi_keyvalue_seq', (select max(_KeyValue_key) from MGI_KeyValue))
 ;
 
 select setval('mgi_property_seq', (select max(_Property_key) from MGI_Property))
+;
+
+select setval('mgi_note_seq', (select max(_Note_key) from MGI_Note))
 ;
 
 EOSQL
