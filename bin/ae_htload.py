@@ -507,8 +507,10 @@ def processExperiment(expJFile):
         experiment.key = 0
         return experiment
     subsections = section['subsections']
+    #print('subsections: %s\n\n' % subsections)
     for subs in subsections:
-        if type(subs) != list:
+        #print('subs: %s\n' % subs)
+        if type(subs) != list and subs != {}:
             # Note: This is experiment authors NOT publication authors
             if subs['type'] == 'Author':
                 authAttr = subs['attributes']
