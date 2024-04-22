@@ -129,8 +129,7 @@ MAIL_LOADNAME="ArrayExpress HT load"
 #  Recipient list for mailing the log files (comma-separated)
 MAIL_LOG_PROC=""
 
-#MAIL_LOG_CUR=""
-MAIL_LOG_CUR="sharon.giannatto@jax.org"
+MAIL_LOG_CUR=""
 
 export MAIL_LOADNAME MAIL_LOG_PROC MAIL_LOG_CUR
 
