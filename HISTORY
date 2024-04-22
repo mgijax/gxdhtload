@@ -1,3 +1,9 @@
+TAG: gxdhtload-6-0-23-8
+DATE: 04/22/2024
+STAFF: sc
+CHANGES: wts2-1459, fl2-838 - 
+        ArrayExpress HT Load failure - missing columns in some sample rows
+
 TAG: gxdhtload-6-0-23-7
 DATE: 04/17/2024
 STAFF: sc

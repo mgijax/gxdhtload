@@ -715,12 +715,13 @@ def processSample(fpSampFile, experiment):
         # now add the unit, characteristics and factor key/values 
         attrRE = re.compile("\[(.+)\]")
         for attr in unitCharFactorHeaderDict:
-            
             r = attrRE.search(attr)
             key = r.group(1)
-            
             index = unitCharFactorHeaderDict[attr]
-            value = str.strip(tokens[index])
+            try:
+                value = str.strip(tokens[index])
+            except:
+                value = ''
             if value != None and value != '':
                 attrList.append('%s|%s' % (key, value))
   
