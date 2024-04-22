@@ -1,3 +1,11 @@
+TAG: gxdhtload-6-0-23-9
+DATE: 04/22/2024
+STAFF: sc
+CHANGES: wts2-1461 
+add more expt types to AE HT experiment load set
+Some of these expts w/new exptTypes have empty data structures in the
+'subsections' that the load needs to accomodate
+
 TAG: gxdhtload-6-0-23-8
 DATE: 04/22/2024
 STAFF: sc
