@@ -98,14 +98,6 @@ sourceKey = 87145238
 rawSampleMgiTypeKey = 47
 
 #
-# for MGI_Note
-#
-# for experiments loaded w/o samples because > maxSamples
-# wts2-1339
-maxNote = 'Exceeds maximum sample number'
-exptNoteTypeKey = 1047
-
-#
 # File Descriptors:
 #
 
@@ -161,8 +153,12 @@ fpVariableBcp =  None
 propertyFileName = os.environ['PROPERTY_FILENAME']
 fpPropertyBcp = None
 
-noteFileName = os.environ['NOTE_FILENAME']
-fpNoteBcp = None
+#
+# sql file for deleting samples
+#
+deleteFileName = os.environ['DELETE_FILENAME']
+fpSampleDelete = None
+deleteTemplate = '''delete from GXD_HTRawSample where accid = '%s';\n'''
 
 #
 # for MGI_Property
@@ -189,9 +185,6 @@ sampleLoadedCount = 0
 # Experiments in the db whose pubmed IDs were updated
 updateExptList = []
 
-# experiments that are either a) curated b) already have a maxNote
-curatedOrHasNoteDict = {}
-
 #
 # database lookups
 #
@@ -205,9 +198,6 @@ nonCuratedExptDict = {}
 # GEO IDs in the database
 # {exptID:key, ...}
 geoExptInDbDict = {}
-
-# count of raw samples in db prior to deleting for reporting purposes
-totalRawSampleCount = 0
 
 # raw experiment types mapped to controlled vocabulary keys
 exptTypeTransDict = {}
@@ -237,11 +227,6 @@ expSkippedNoSampleList = []
 
 # experiments loaded with no samples because no sample file
 expLoadedNoSampleList = []
-
-# all experiment ids in the input 
-# LATER: we can use this to determine the set in the db that is not in the file
-# using expIdsInDbSet
-allExptIdSet = set()
 
 # {exptID:[sampleId1, ...sampleIdn], ...}
 duplicatedSampleIdDict = {}
@@ -275,12 +260,12 @@ overallDesign = ''
 #
 def initialize():
     global fpQcFile, fpExpParsingFile, fpSampParsingFile, fpSampInDbParsingFile
-    global fpExperimentBcp, fpSampleBcp, fpKeyValueBcp
-    global fpAccBcp, fpVariableBcp, fpPropertyBcp, fpNoteBcp, nextExptKey
-    global nextAccKey, nextExptVarKey, nextPropKey, nextNoteKey, geoExptInDbDict
+    global fpExperimentBcp, fpSampleBcp, fpKeyValueBcp, fpSampleDelete
+    global fpAccBcp, fpVariableBcp, fpPropertyBcp, nextExptKey
+    global nextAccKey, nextExptVarKey, nextPropKey, geoExptInDbDict
     global pubMedByExptDict, nextRawSampleKey, nextKeyValueKey 
-    global totalRawSampleCount, curatedExptDict, nonCuratedExptDict
-    global fpCuratedQcFile, curatedOrHasNoteDict
+    global curatedExptDict, nonCuratedExptDict
+    global fpCuratedQcFile
 
     # create file descriptors
     try:
@@ -341,9 +326,9 @@ def initialize():
         print('Cannot create %s' % keyValueFileName)
 
     try:
-        fpNoteBcp = open('%s/%s' % (outputDir, noteFileName), 'w')
+        fpSampleDelete = open('%s' % (deleteFileName), 'w')
     except:
-        print('Cannot create %s' % noteFileName)
+        print('Cannot create %s' % deleteFileName)
 
     db.useOneConnection(1)
 
@@ -370,10 +355,6 @@ def initialize():
     # get next primary key for the Property table
     results = db.sql(''' select nextval('mgi_property_seq') as maxKey ''', 'auto')
     nextPropKey  = results[0]['maxKey']
-
-    # get next primary key for the Note table
-    results = db.sql(''' select nextval('mgi_note_seq') as maxKey ''', 'auto')
-    nextNoteKey  = results[0]['maxKey']
 
     # Create experiment ID lookup - we are looking at preferred = 0 or 1 
     # because GEO ids can be either
@@ -424,11 +405,6 @@ def initialize():
             pubMedByExptDict[accid] = []
         pubMedByExptDict[accid].append(value)
 
-    results = db.sql('''select count(*) as rsCt
-        from gxd_htrawsample''', 'auto')
-        
-    totalRawSampleCount = results[0]['rsCt']
-
     # get curated experiments
     db.sql('''select distinct a.accid as exptID, a._object_key as _experiment_key
         into temporary table curated
@@ -463,29 +439,6 @@ left outer join gxd_htrawsample rs on (a._object_key = rs._experiment_key)
             nonCuratedExptDict[exptID] = []
         nonCuratedExptDict[exptID].append(rsID)
 
-    # list of experiments that are either curated or already have a maxNote note
-    results = db.sql('''select a.accid, 'curated' as stat 
-    from acc_accession a, gxd_htexperiment e
-    where a._mgitype_key = 42
-    and a._logicaldb_key = 190
-    and a._object_key = e._experiment_key
-    and e._curationstate_key = 20475421 -- done
-    union
-    select a.accid, 'hasNote' as stat
-    from acc_accession a, mgi_note n
-    where a._mgitype_key = 42
-    and a._logicaldb_key = 190
-    and a._object_key = n._object_key
-    and n._notetype_key = 1047 -- GXD HT Experiment 
-    and n.note = '%s' ''' % maxNote, 'auto')
-
-    for r in results:
-        expID = r['accid']
-        stat = r['stat']
-
-        if expID not in curatedOrHasNoteDict:
-            curatedOrHasNoteDict[expID] = []
-        curatedOrHasNoteDict[expID].append(stat)
     db.useOneConnection(0)
     
     return 0
@@ -509,23 +462,6 @@ def removeNonAscii(text):
 
     return newText
 
-#
-# Purpose: writes to the GXD HT Experiment note bcp file for the experiment 
-#          represented by 'exptKey' with note 'maxNote'
-# Returns:
-# Assumes: Nothing
-# Effects: writes to the file system
-# Throws: Nothing
-#
-
-def processNote(exptKey):
-    global nextNoteKey
-
-    fpNoteBcp.write("%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s" % (nextNoteKey, TAB, exptKey, TAB, exptMgiTypeKey, TAB, exptNoteTypeKey, TAB, maxNote, TAB, userKey, TAB, userKey, TAB,  loadDate, TAB, loadDate, CRT))
-    
-    nextNoteKey += 1
-
-    return 0
 #
 # Purpose: Loops through all experiment files sending them to parser
 # Returns:
@@ -588,7 +524,6 @@ def process(expFile):
                 print('expID: %s' % expID)
             expCount += 1
             skip = 0
-            allExptIdSet.add(expID)
 
             #
             # Experiment is in the database
@@ -649,7 +584,7 @@ def process(expFile):
                 if ret == 1:
                      print('returnCode for %s: %s, no sample file' % (expID, ret))
                 elif ret == 2:
-                      print('returnCode for %s: %s, parsing issue' % (expID, ret))
+                     print('returnCode for %s: %s, parsing issue' % (expID, ret))
                 else:
                      # wts2-1339: expt is in db, call processSampleBcp only if <= maxSamples
                      # only add samples if <= the configured max samples
@@ -658,9 +593,6 @@ def process(expFile):
                          processSampleBcp(sampleList, updateExpKey)
                      else:
                         expMaxSamplesSet.add('Experiment in DB: %s' % expID) 
-                        if expID not in curatedOrHasNoteDict:
-                            print('processing maxNote for: %s in db' % expID)
-                            processNote(updateExpKey)
 
             # -- end "if expID in geoExptInDbDict:" ------------------------------
 
@@ -677,8 +609,8 @@ def process(expFile):
                 # exptType or already in DB
                 expSkippedNotInDbTransIsSuperseriesSet.add(expID)
                 skip = 1
-            # wts2-1339: expt not in db, we want to create the expt then later check how many samples
-            # create experiment note
+            # wts2-1339: expt not in db, we want to create the expt 
+            # then later check how many samples
             if  skip != 1: 
                 exptLoadedCount += 1
                 createExpObject = 0
@@ -766,16 +698,18 @@ def process(expFile):
                     # GXD_HTRawSample and MGI_KeyValue BCP
                     #
                     # ret from processSample = 1 means there was no sample file
-                    # so experiment is created, but no samples
-                    #if ret != 1:
-                    # wts2-1339  replace previous line with this line
-                    # we've created the experiment, now check the number of samples
-                    if ret != 1 and len(sampleList) <= maxSamples:
-                        processSampleBcp(sampleList, nextExptKey) 
-                    else:
+                    # so experiment is created, but no samples wts2-1339 
+                        # we've created the experiment, 
+                        #   now check the number of samples
+                    if DEBUG == 'true':
+                        print('ret: %s len(sampleList): %s ' % (ret, len(sampleList)))
+                    if ret == 1: #no sample file
+                        pass # do nothing
+                    elif len(sampleList) <= maxSamples:
+                        processSampleBcp(sampleList, nextExptKey)
+                    else: #ret != 1 and len(sampleList) > maxSamples
                         expMaxSamplesSet.add('New experiment: %s ' % expID)
-                        print('processing maxNote for: %s new' % expID)
-                        processNote(nextExptKey)
+                        
                     # now increment the experiment key
                     nextExptKey += 1
             title = ''
@@ -1129,9 +1063,14 @@ def processSampleBcp(sampleList, # list of samples for current experiment
         # write to fpSampleBcp here
         fpSampleBcp.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextRawSampleKey, TAB, nextExptKey, TAB, sampleID, TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT))
 
+        # write sample to be deleted
+        fpSampleDelete.write(deleteTemplate % sampleID)
+
+
         channels = str.split(channelString, '|||')
         seqNum = 1 # there can be 1 or 2 channels, data for each channel
                    # distinguished by seqNum
+
         # write out key/value for description, title and sType
         if description != None and description != '':
             fpKeyValueBcp.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextKeyValueKey, TAB, nextRawSampleKey, TAB, rawSampleMgiTypeKey, TAB, 'description', TAB, description, TAB, seqNum, TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT))
@@ -1252,9 +1191,6 @@ def processSampleBcp(sampleList, # list of samples for current experiment
 #
 
 def writeQC():
-    expIdsInDbSet = set(geoExptInDbDict.keys())
-    orphanSet = expIdsInDbSet.difference(allExptIdSet)
-
     # the curated experiment report    
     fpCuratedQcFile.write('* Number of curated experiments with updated samples (gains/losses):%s%s%s' % \
          (len(curSampleGainLossList), CRT, CRT))
@@ -1295,14 +1231,6 @@ def writeQC():
 
     fpQcFile.write('* Number experiments, already in DB: %s%s%s' % \
         (len(geoExptInDbDict), CRT, CRT))
-
-    fpQcFile.write('* Number of experiments in the database, but withdrawn/private in GEO: %s%s%s' % \
-        (len(orphanSet), CRT, CRT))
-    idList = CRT.join(str(s) for s in orphanSet)
-    fpQcFile.write('%s%s%s' % (idList, CRT, CRT))
-
-    fpQcFile.write('* Number of raw samples in the database prior to deleting: %s%s%s' % \
-        (totalRawSampleCount, CRT, CRT))
 
     fpQcFile.write('* Number of raw samples loaded: %s%s%s' % \
         (sampleLoadedCount, CRT, CRT))
@@ -1359,9 +1287,11 @@ def closeFiles():
     fpAccBcp.close()
     fpVariableBcp.close()
     fpPropertyBcp.close()
-    fpNoteBcp.close()
+
+    fpSampleDelete.close()
 
     return 0
+
 #
 # main
 #
