@@ -1,3 +1,14 @@
+TAG: gxdhtload-6-0-23-10
+DATE: 05/30/2024
+STAFF: sc
+CHANGES: 
+1) fl2-839 'GXD HT GEO load: reinstate 730 day config setting'
+   download expts/samples back 2 years, not since the beginning
+2) fl2-843 'GEO HT Load - Max Samples bug'
+   expts w/o sample files are incorrectly being reported as > max samples
+   and a expt note is being created.
+   expt notes being created by the load were backed out - see story for info
+ 
 TAG: gxdhtload-6-0-23-9
 DATE: 04/22/2024
 STAFF: sc
