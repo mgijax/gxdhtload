@@ -141,64 +141,63 @@ STAT=$?
 checkStatus ${STAT} "${GXDHTLOAD}/bin/geo_htload.py"
 
 #
-# Truncate the Raw Sample table
+# Do Deletes
 #
-echo "" >> ${LOG}
-date >> ${LOG}
-echo "Truncate GXD_HTRawSample" | tee -a ${LOG}
-${MGD_DBSCHEMADIR}/table/GXD_HTRawSample_truncate.object
-echo "" >> ${LOG}
+# check for empty file
+# execute sql file
+if [ -s "${DELETE_FILENAME}" ]
+then
+    echo "" >> ${LOG_DIAG}
+    date >> ${LOG_DIAG}
+    echo 'Deleting Raw Samples'  >> ${LOG_DIAG}
+    psql -U${MGD_DBUSER} -h${MGD_DBSERVER} -d${MGD_DBNAME} -f ${DELETE_FILENAME} -e >> ${LOG_DIAG} 2>&1
+
+fi
 
 #
 # run BCP
 #
 
-date >> ${LOG}
-echo "Load GXD_HTExperiment" | tee -a ${LOG}
+date >> ${LOG_DIAG}
+echo "Load GXD_HTExperiment" | tee -a ${LOG_DIAG}
 ${PG_DBUTILS}/bin/bcpin.csh ${MGD_DBSERVER} ${MGD_DBNAME} GXD_HTExperiment ${OUTPUTDIR} GXD_HTExperiment.bcp "\t" "\n" mgd
-date >> ${LOG}
+date >> ${LOG_DIAG}
 
-echo "" >> ${LOG}
-date >> ${LOG}
-echo "Load ACC_Accession" | tee -a ${LOG}
+echo "" >> ${LOG_DIAG}
+date >> ${LOG_DIAG}
+echo "Load ACC_Accession" | tee -a ${LOG_DIAG}
 ${PG_DBUTILS}/bin/bcpin.csh ${MGD_DBSERVER} ${MGD_DBNAME} ACC_Accession ${OUTPUTDIR} ACC_Accession.bcp "\t" "\n" mgd
-date >> ${LOG}
+date >> ${LOG_DIAG}
 
-echo "" >> ${LOG}
-date >> ${LOG}
-echo "Load GXD_HTExperimentVariable" | tee -a ${LOG}
+echo "" >> ${LOG_DIAG}
+date >> ${LOG_DIAG}
+echo "Load GXD_HTExperimentVariable" | tee -a ${LOG_DIAG}
 ${PG_DBUTILS}/bin/bcpin.csh ${MGD_DBSERVER} ${MGD_DBNAME} GXD_HTExperimentVariable ${OUTPUTDIR} GXD_HTExperimentVariable.bcp "\t" "\n" mgd
-date >> ${LOG}
+date >> ${LOG_DIAG}
 
-echo "" >> ${LOG}
-date >> ${LOG}
-echo "Load MGI_Property" | tee -a ${LOG}
+echo "" >> ${LOG_DIAG}
+date >> ${LOG_DIAG}
+echo "Load MGI_Property" | tee -a ${LOG_DIAG}
 ${PG_DBUTILS}/bin/bcpin.csh ${MGD_DBSERVER} ${MGD_DBNAME} MGI_Property ${OUTPUTDIR} MGI_Property.bcp "\t" "\n" mgd
-date >> ${LOG}
+date >> ${LOG_DIAG}
 
-echo "" >> ${LOG}
-date >> ${LOG}
-echo "Load GXD_HTRawSample" | tee -a ${LOG}
+echo "" >> ${LOG_DIAG}
+date >> ${LOG_DIAG}
+echo "Load GXD_HTRawSample" | tee -a ${LOG_DIAG}
 ${PG_DBUTILS}/bin/bcpin.csh ${MGD_DBSERVER} ${MGD_DBNAME} GXD_HTRawSample ${OUTPUTDIR} GXD_HTRawSample.bcp "\t" "\n" mgd
-date >> ${LOG}
+date >> ${LOG_DIAG}
 
-echo "" >> ${LOG}
-date >> ${LOG}
-echo "Load MGI_KeyValue" | tee -a ${LOG}
+echo "" >> ${LOG_DIAG}
+date >> ${LOG_DIAG}
+echo "Load MGI_KeyValue" | tee -a ${LOG_DIAG}
 ${PG_DBUTILS}/bin/bcpin.csh ${MGD_DBSERVER} ${MGD_DBNAME} MGI_KeyValue ${OUTPUTDIR} MGI_KeyValue.bcp "\t" "\n" mgd
-date >> ${LOG}
-
-echo "" >> ${LOG}
-date >> ${LOG}
-echo "Load MGI_Note" | tee -a ${LOG}
-${PG_DBUTILS}/bin/bcpin.csh ${MGD_DBSERVER} ${MGD_DBNAME} MGI_Note ${OUTPUTDIR} MGI_Note.bcp "\t" "\n" mgd
-date >> ${LOG}
+date >> ${LOG_DIAG}
 
 #
 # Update autosequence
 # 
 
-echo "Updating auto-sequence" >>  ${LOG}
+echo "Updating auto-sequence" >>  ${LOG_DIAG}
 cat - <<EOSQL | psql -h${MGD_DBSERVER} -d${MGD_DBNAME} -U mgd_dbo -e >> ${LOG_DIAG} 2>&1
 
 select setval('gxd_htexperiment_seq', (select max(_Experiment_key) from GXD_HTExperiment)) 
@@ -214,9 +213,6 @@ select setval('mgi_keyvalue_seq', (select max(_KeyValue_key) from MGI_KeyValue))
 ;
 
 select setval('mgi_property_seq', (select max(_Property_key) from MGI_Property))
-;
-
-select setval('mgi_note_seq', (select max(_Note_key) from MGI_Note))
 ;
 
 EOSQL
