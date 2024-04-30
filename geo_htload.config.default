@@ -75,6 +75,11 @@ NOTE_FILENAME=MGI_Note.bcp
 export EXPERIMENT_FILENAME ACC_FILENAME VARIABLE_FILENAME PROPERTY_FILENAME
 export SAMPLE_FILENAME KEYVALUE_FILENAME NOTE_FILENAME
 
+# SQL delete filename
+DELETE_FILENAME=${OUTPUTDIR}/sampleDelete.sql
+
+export DELETE_FILENAME
+
 #  Complete path name of the log files
 LOG_FILE=${LOGDIR}/geo_htload.log
 LOG_PROC=${LOGDIR}/geo_htload.proc.log
@@ -93,8 +98,8 @@ GEO_DOWNLOADS_ARCHIVE="${GEO_DOWNLOADS}.archive"
 
 # how far to go back to fetch experiments in days (this is by release date)
 # if this var does not exist or is empty ("") then all experiments downloaded
-#EXPT_DOWNLOAD_DAYS=730
-EXPT_DOWNLOAD_DAYS=""
+EXPT_DOWNLOAD_DAYS=730
+#EXPT_DOWNLOAD_DAYS=""
 
 export EXPT_XML_FILE GEO_DOWNLOADS GEO_DOWNLOADS_ARCHIVE EXPT_DOWNLOAD_DAYS
 
