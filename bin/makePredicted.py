@@ -51,8 +51,7 @@ def getArgs():
 
     parser.add_argument('-s', '--server', dest='server', action='store',
         required=False, default=defaultHost,
-        help='db server. Shortcuts:  adhoc, prod, dev, test. (Default %s)' %
-                defaultHost)
+        help='db server. Shortcuts:  prod, dev, test. (Default %s)' % defaultHost)
 
     parser.add_argument('-d', '--database', dest='database', action='store',
         required=False, default=defaultDatabase,
@@ -60,15 +59,12 @@ def getArgs():
 
     args =  parser.parse_args()
 
-    if args.server == 'adhoc':
-        args.host = 'mgi-adhoc.jax.org'
-        args.db = 'mgd'
-    elif args.server == 'prod':
+    if args.server == 'prod':
         args.host = 'bhmgidb01.jax.org'
         args.db = 'prod'
     elif args.server == 'dev':
         args.host = 'mgi-testdb4.jax.org'
-        args.db = 'jak'
+        args.db = 'prod_dev'
     elif args.server == 'test':
         args.host = 'bhmgidevdb01.jax.org'
         args.db = 'prod'

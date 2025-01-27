@@ -1,3 +1,10 @@
+TAG: gxdhtload-6-0-25-1
+DATE: 01/27/2025
+STAFF: lec
+CHANGES: 
+wts2-1605/e4g-124/Retire AdHoc Server : remove local dependencies
+        modified:   bin/makePredicted.py
+
 TAG: gxdhtload-6-0-24-?
 DATE: 07/26/2024
 STAFF: lec
