@@ -1,3 +1,9 @@
+TAG: gxdhtload-6-0-25-2
+DATE: 02/11/2025
+STAFF: lec
+CHANGES: 
+wts2-1612/e4g-146/sw:GEO_GXD_HT_Load -- add "Other" to list of desired series types and see how well the classifier handles it
+
 TAG: gxdhtload-6-0-25-1
 DATE: 01/27/2025
 STAFF: lec

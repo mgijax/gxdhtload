@@ -9,6 +9,8 @@
 #
 # History:
 #
+#   insert into mgi_translation(select nextval('mgi_translation_seq'),1020,20475438,'Other',19,1001,1001,now(),now())
+#
 # sc   06/17/2021
 #       - created WTS2-431
 #
@@ -369,9 +371,7 @@ def initialize():
         geoExptInDbDict[r['accid']] = r['_experiment_key']
 
     # Create experiment type translation lookup
-    results = db.sql('''select badname, _Object_key
-        from MGI_Translation
-        where _TranslationType_key = 1020''', 'auto')
+    results = db.sql('''select badname, _Object_key from MGI_Translation where _TranslationType_key = 1020''', 'auto')
     for r in results:
         exptTypeTransDict[r['badname']] = r['_Object_key']
 
@@ -597,6 +597,10 @@ def process(expFile):
             # -- end "if expID in geoExptInDbDict:" ------------------------------
 
             typeList = list(map(str.strip, gdsType.split(';')))
+            # 'Other' is only used if it is the only term in the typeList
+            if 'Other' in typeList and len(typeList) > 1:
+                skip = 1
+
             if skip != 1:
                 (exptTypeKey, exptType) = processExperimentType(typeList)
                 if exptTypeKey == 0:

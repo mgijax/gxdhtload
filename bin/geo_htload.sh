@@ -122,7 +122,7 @@ fi
 #
 # createArchive including OUTPUTDIR, startLog, getConfigEnv
 # sets "JOBKEY"
-preload #${OUTPUTDIR}
+preload
 
 # get the listing of experiment files
 # for debug, process just one file
@@ -151,7 +151,6 @@ then
     date >> ${LOG_DIAG}
     echo 'Deleting Raw Samples'  >> ${LOG_DIAG}
     psql -U${MGD_DBUSER} -h${MGD_DBSERVER} -d${MGD_DBNAME} -f ${DELETE_FILENAME} -e >> ${LOG_DIAG} 2>&1
-
 fi
 
 #
