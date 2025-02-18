@@ -11,6 +11,10 @@
 #
 #   insert into mgi_translation(select nextval('mgi_translation_seq'),1020,20475438,'Other',19,1001,1001,now(),now())
 #
+# lec   02/18/2025
+#   wts2-1616/E4G-150/GEO GXD Ht Load: dropping and reloading of raw samples not happening
+#   moved delete of Raw Sample from "by sample name" -> "by experiment key"
+#
 # sc   06/17/2021
 #       - created WTS2-431
 #
@@ -160,7 +164,7 @@ fpPropertyBcp = None
 #
 deleteFileName = os.environ['DELETE_FILENAME']
 fpSampleDelete = None
-deleteTemplate = '''delete from GXD_HTRawSample where accid = '%s';\n'''
+deleteTemplate = '''delete from GXD_HTRawSample where _experiment_key = %s;\n'''
 
 #
 # for MGI_Property
@@ -627,8 +631,7 @@ def process(expFile):
                     expSkippedNoSampleList.append('expID: %s' % (expID))
                     exptLoadedCount -= 1 # decrement the loaded count
                 else:
-                    sampleList = ret #  list of sampleString's representing each
-                                     #  sample for the current experiment
+                    sampleList = ret #  list of sampleString's representing each sample for the current experiment
                     createExpObject = 1
                 if createExpObject:
                     # catenate the global overallDesign parsed from the sample to the
@@ -1039,7 +1042,7 @@ def processOneChannel(channelDict):
 #
 
 def processSampleBcp(sampleList, # list of samples for current experiment
-                        nextExptKey): # expt key for samples we are processing
+                     nextExptKey): # expt key for samples we are processing
 
     global nextRawSampleKey, nextKeyValueKey, sampleLoadedCount
     global curSampleGainLossList, ncSampleGainLossList
@@ -1055,6 +1058,10 @@ def processSampleBcp(sampleList, # list of samples for current experiment
     #
     inputSampleIdSet = set()
     expID = ''
+
+    # write experiment to be deleted
+    fpSampleDelete.write(deleteTemplate % nextExptKey)
+
     for sampleString in sampleList:
         sampleLoadedCount += 1
         if DEBUG == 'true':
@@ -1066,10 +1073,6 @@ def processSampleBcp(sampleList, # list of samples for current experiment
 
         # write to fpSampleBcp here
         fpSampleBcp.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextRawSampleKey, TAB, nextExptKey, TAB, sampleID, TAB, userKey, TAB, userKey, TAB, loadDate, TAB, loadDate, CRT))
-
-        # write sample to be deleted
-        fpSampleDelete.write(deleteTemplate % sampleID)
-
 
         channels = str.split(channelString, '|||')
         seqNum = 1 # there can be 1 or 2 channels, data for each channel
