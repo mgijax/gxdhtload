@@ -1,3 +1,10 @@
+TAG: gxdhtload-6-0-25-?
+DATE: 02/18/2025
+STAFF: lec
+CHANGES: 
+wts2-1616/E4G-150/GEO GXD Ht Load: dropping and reloading of raw samples not happening
+        modified:   bin/geo_htload.py
+
 TAG: gxdhtload-6-0-25-2
 DATE: 02/11/2025
 STAFF: lec
