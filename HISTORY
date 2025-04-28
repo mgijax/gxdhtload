@@ -1,3 +1,10 @@
+TAG: gxdhtload-6-0-25-5
+DATE: 04/28/2025
+STAFF: lec
+CHANGES: 
+wts2-1652/e4g-235/GXD HT Load/AE issue
+        modified:   bin/ae_htload.py
+
 TAG: gxdhtload-6-0-25-4
 TAG: gxdhtload-6-0-25-3
 DATE: 02/18/2025

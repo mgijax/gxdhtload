@@ -380,13 +380,18 @@ def processAll():
             fpExpCurrent.close()
             continue
 
-        # sometimes a file downloads, but it is empty, this try except block
-        # will capture the error 
+        # sometimes the input file is empty
         try:
             expJFile = json.load(fpExpCurrent)
         except:
             #print('File is empty %s skipping experiment %s' % (currentExpFile, id))
             missingExptFileList.append(id)
+            closeInputFiles(fpExpCurrent, fpSampCurrent)            
+            continue
+
+        # sometimes the input file is does not contain "accno"
+        if 'accno' not in expJFile:
+            print('File is missing accno line %s skipping experiment %s' % (currentExpFile, id))
             closeInputFiles(fpExpCurrent, fpSampCurrent)            
             continue
 
@@ -443,7 +448,6 @@ def processExperiment(expJFile):
     pubMedIdList = []
 
     exptID = expJFile['accno']
-    
     print('processExperiment, exptID from file: %s' % exptID)
     fpExpParsingFile.write('%sProcessing "%s"%s' % (CRT, exptID, CRT))
     experiment = Experiment()
@@ -896,47 +900,49 @@ def writeQC():
 
 def doBCP():
 
-    bcpCmd = '%s %s %s %s %s %s "\\t" "\\n" mgd' % (bcpin, server, database, expt_table, outputDir, experimentFileName)
-    print('bcpCmd: %s' % bcpCmd)
-    rc = os.system(bcpCmd)
+    rc = 0
 
-    if rc:
-        return rc
+    if os.path.getsize(outputDir + "/" + experimentFileName) > 0:
+        bcpCmd = '%s %s %s %s %s %s "\\t" "\\n" mgd' % (bcpin, server, database, expt_table, outputDir, experimentFileName)
+        print('bcpCmd: %s' % bcpCmd)
+        rc = os.system(bcpCmd)
+        if rc:
+            return rc
 
-    bcpCmd = '%s %s %s %s %s %s "\\t" "\\n" mgd' % (bcpin, server, database, acc_table, outputDir, accFileName)
-    print('bcpCmd: %s' % bcpCmd)
-    rc = os.system(bcpCmd)
+    if os.path.getsize(outputDir + "/" + accFileName) > 0:
+        bcpCmd = '%s %s %s %s %s %s "\\t" "\\n" mgd' % (bcpin, server, database, acc_table, outputDir, accFileName)
+        print('bcpCmd: %s' % bcpCmd)
+        rc = os.system(bcpCmd)
+        if rc:
+            return rc
 
-    if rc:
-        return rc
+    if os.path.getsize(outputDir + "/" + variableFileName) > 0:
+        bcpCmd = '%s %s %s %s %s %s "\\t" "\\n" mgd' % (bcpin, server, database, exptvar_table, outputDir, variableFileName)
+        print('bcpCmd: %s' % bcpCmd)
+        rc = os.system(bcpCmd)
+        if rc:
+            return rc
 
-    bcpCmd = '%s %s %s %s %s %s "\\t" "\\n" mgd' % (bcpin, server, database, exptvar_table, outputDir, variableFileName)
-    print('bcpCmd: %s' % bcpCmd)
-    rc = os.system(bcpCmd)
+    if os.path.getsize(outputDir + "/" + propertyFileName) > 0:
+        bcpCmd = '%s %s %s %s %s %s "\\t" "\\n" mgd' % (bcpin, server, database, property_table, outputDir, propertyFileName)
+        print('bcpCmd: %s' % bcpCmd)
+        rc = os.system(bcpCmd)
+        if rc:
+            return rc
 
-    if rc:
-        return rc
+    if os.path.getsize(outputDir + "/" + sampleFileName) > 0:
+        bcpCmd = '%s %s %s %s %s %s "\\t" "\\n" mgd' % (bcpin, server, database, sample_table, outputDir, sampleFileName)
+        print('bcpCmd: %s' % bcpCmd)
+        rc = os.system(bcpCmd)
+        if rc:
+            return rc
 
-    bcpCmd = '%s %s %s %s %s %s "\\t" "\\n" mgd' % (bcpin, server, database, property_table, outputDir, propertyFileName)
-    print('bcpCmd: %s' % bcpCmd)
-    rc = os.system(bcpCmd)
-
-    if rc:
-        return rc
-
-    bcpCmd = '%s %s %s %s %s %s "\\t" "\\n" mgd' % (bcpin, server, database, sample_table, outputDir, sampleFileName)
-    print('bcpCmd: %s' % bcpCmd)
-    rc = os.system(bcpCmd)
-
-    if rc:
-        return rc
-
-    bcpCmd = '%s %s %s %s %s %s "\\t" "\\n" mgd' % (bcpin, server, database, keyvalue_table, outputDir, keyValueFileName)
-    print('bcpCmd: %s' % bcpCmd)
-    rc = os.system(bcpCmd)
-    
-    if rc:
-        return rc
+    if os.path.getsize(outputDir + "/" + keyValueFileName) > 0:
+        bcpCmd = '%s %s %s %s %s %s "\\t" "\\n" mgd' % (bcpin, server, database, keyvalue_table, outputDir, keyValueFileName)
+        print('bcpCmd: %s' % bcpCmd)
+        rc = os.system(bcpCmd)
+        if rc:
+            return rc
 
     # update gxd_htexperiment_seq auto-sequence
     db.sql(''' select setval('gxd_htexperiment_seq', (select max(_Experiment_key) from GXD_HTExperiment)) ''', None)
@@ -953,10 +959,7 @@ def doBCP():
     # update mgi_property_seq auto-sequence
     db.sql(''' select setval('mgi_property_seq', (select max(_Property_key) from MGI_Property)) ''', None)
 
-    if rc:
-        return rc
-
-    return 0
+    return rc
 
 # end doBCP() -----------------------------------------
 
