@@ -389,7 +389,7 @@ def processAll():
             closeInputFiles(fpExpCurrent, fpSampCurrent)            
             continue
 
-        # sometimes the input file is does not contain "accno"
+        # sometimes the input file does not contain "accno"
         if 'accno' not in expJFile:
             print('File is missing accno line %s skipping experiment %s' % (currentExpFile, id))
             closeInputFiles(fpExpCurrent, fpSampCurrent)            
