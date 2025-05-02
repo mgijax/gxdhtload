@@ -1,3 +1,11 @@
+TAG: gxdhtload-6-0-25-6
+DATE: 05/02/2025
+STAFF: lec
+CHANGES: 
+wts2-1657/e4g-248/sw:GEO_GXD_HT_Load -- one-time back population of "Other" series
+        modified:   bin/mirror_geo_sample.py
+added logic to use a test set from Connie
+
 TAG: gxdhtload-6-0-25-5
 DATE: 04/28/2025
 STAFF: lec

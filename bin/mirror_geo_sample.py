@@ -72,7 +72,17 @@ def parseAll():
 def parseFile(fpInFile):
     global geoExperimentIdList
     expFound = 0
+    expFoundOther = 0
     gseId = ''
+
+    # test set from Connie
+    #otherList = []
+    #fpOther = open('/data/loads/lec/mgi/geo_htload/logs/Mus_mus_Other_in_GEO.txt', 'r')
+    #for line in fpOther.readlines():
+    #    id = line[:-1]
+    #    otherList.append(id)
+    #fpOther.close()
+
     line = str.lstrip(fpInFile.readline())
     # don't strip if just newline so blank lines won't stop the loop
     if line != '\n':
@@ -83,12 +93,18 @@ def parseFile(fpInFile):
             expFound = 1
         elif line.find('</DocumentSummary>') == 0:
             expFound = 0
-        #print 'expFound: %s' % expFound
+        #print('expFound: ', expFound)
+        #print('expFoundOther: ', expFoundOther)
         if expFound:
             if line.find('<Accession') == 0:
-                id =  line.split('>')[1].split('<')[0]
+                id = line.split('>')[1].split('<')[0]
+
+                # use test set from Connie
+                #if id in otherList:
+
                 if id.find('GSE') == 0:
-                    geoExperimentIdList.append(id)
+                        geoExperimentIdList.append(id)
+
         line = fpInFile.readline()
         # don't strip if just newline so blank lines won't stop the loop
         if line != '\n':
