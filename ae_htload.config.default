@@ -51,7 +51,7 @@ LOAD_QC_SH=${GXDHTLOAD}/bin/exptQC.sh
 
 export LOAD_QC_SH
 
-BASE_EXP_URL="https://www.ebi.ac.uk/biostudies/api/v1/studies/"
+BASE_EXP_URL="https://ftp.ebi.ac.uk/biostudies/fire"
 BASE_SAMP_URL="https://www.ebi.ac.uk/biostudies/files/"
 
 export BASE_EXP_URL BASE_SAMP_URL

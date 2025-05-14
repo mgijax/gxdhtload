@@ -30,14 +30,14 @@ curLogName = os.getenv('MIRROR_LOG_CUR')
 baseExpUrl = os.getenv('BASE_EXP_URL')
 baseSampUrl = os.getenv('BASE_SAMP_URL')
 
-# Example: https://www.ebi.ac.uk/biostudies/api/v1/studies/E-MTAB-11442
-# Samp Example: https://www.ebi.ac.uk/biostudies/files/E-MTAB-11442/E-MTAB-11442.sdrf.txt
-ftpExpUrlTemplate = '%s%s' % (baseExpUrl, S)
+# Example: https://ftp.ebi.ac.uk/biostudies/fire/E-MTAB-/993/E-MTAB-14993/E-MTAB-14993.json
+# Samp Example: https://www.ebi.ac.uk/biostudies/files/E-MTAB-14993/E-MTAB-14993.sdrf.txt
+ftpExpUrlTemplate = baseExpUrl + '/%s/%s/%s/%s.json'
 expFileTemplate = "%s.json"
 
 ftpSampUrlTemplate = '%s%s/%s.sdrf.txt' % (baseSampUrl, S, S)
 ftpSampFileTemplate = '%s.sdrf.txt'
-print('ftpExpUrlTemplate: %s ftpSampUrlTemplate: %s' % (ftpExpUrlTemplate, ftpSampUrlTemplate))
+print('ftpExpUrlTemplate: %s ftpSampUrlTemplate: %s' % (baseExpUrl, ftpSampUrlTemplate))
 
 fpIn = None
 
@@ -74,14 +74,25 @@ def init():
 
     return
 
-# https://www.ebi.ac.uk/biostudies/files/E-MTAB-9392/E-MTAB-9392.sdrf.txt
 # iterate thru the ArrayExpress IDs fetching the experiment and sample files
 def process():
     for id in expIdList:
 
         # create url
         #print(id)
-        expURL = ftpExpUrlTemplate % id
+
+        # Example: https://ftp.ebi.ac.uk/biostudies/fire/E-MTAB-/993/E-MTAB-14993/E-MTAB-14993.json
+        # wts2-1664/e4g-256  - BASE_EXPT_URL changed
+        tokens = id.split('-')
+        t1 = tokens[0] + '-' + tokens[1] + '-'
+        t2 = tokens[2]
+        n = 3
+        t3 = ""
+        for i in range(len(t2) - n, len(t2)):
+            t3 += t2[i]
+        expURL = ftpExpUrlTemplate % (t1, t3, id, id)
+        #print(expURL)
+
         expFile = expFileTemplate % id
         smpURL = ftpSampUrlTemplate % (id, id)
         smpFile = ftpSampFileTemplate % id
