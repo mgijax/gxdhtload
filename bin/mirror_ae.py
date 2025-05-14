@@ -27,17 +27,19 @@ curLogName = os.getenv('MIRROR_LOG_CUR')
 #
 # Create the path and file templates
 #
-baseExpUrl = os.getenv('BASE_EXP_URL')
+baseExpUrl1 = os.getenv('BASE_EXP_URL1')
+baseExpUrl2 = os.getenv('BASE_EXP_URL2')
 baseSampUrl = os.getenv('BASE_SAMP_URL')
 
 # Example: https://ftp.ebi.ac.uk/biostudies/fire/E-MTAB-/993/E-MTAB-14993/E-MTAB-14993.json
 # Samp Example: https://www.ebi.ac.uk/biostudies/files/E-MTAB-14993/E-MTAB-14993.sdrf.txt
-ftpExpUrlTemplate = baseExpUrl + '/%s/%s/%s/%s.json'
+ftpExpUrlTemplate1 = baseExpUrl1 + '/%s/%s/%s/%s.json'
+ftpExpUrlTemplate2 = baseExpUrl2 + '/%s/%s/%s/%s.json'
 expFileTemplate = "%s.json"
 
 ftpSampUrlTemplate = '%s%s/%s.sdrf.txt' % (baseSampUrl, S, S)
 ftpSampFileTemplate = '%s.sdrf.txt'
-print('ftpExpUrlTemplate: %s ftpSampUrlTemplate: %s' % (baseExpUrl, ftpSampUrlTemplate))
+print('ftpExpUrlTemplate: %s ftpSampUrlTemplate: %s' % (baseExpUrl1, ftpSampUrlTemplate))
 
 fpIn = None
 
@@ -90,7 +92,7 @@ def process():
         t3 = ""
         for i in range(len(t2) - n, len(t2)):
             t3 += t2[i]
-        expURL = ftpExpUrlTemplate % (t1, t3, id, id)
+        expURL = ftpExpUrlTemplate1 % (t1, t3, id, id)
         #print(expURL)
 
         expFile = expFileTemplate % id
@@ -108,11 +110,20 @@ def process():
         stderr = result.stderr
         statusCode = result.returncode
 
+        # try the second URL
+        if statusCode != 0:
+            expURL = ftpExpUrlTemplate2 % (t1, t3, id, id)
+            cmd = 'wget -O %s/%s %s' % (inputDir, expFile, expURL)
+            print('cmd: %s' % cmd)
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+            stdout = result.stdout
+            stderr = result.stderr
+            statusCode = result.returncode
+    
         if statusCode != 0:
             fpCurLogFile.write('%sExperiment file: %s%s' % (CRT, expFile, CRT))
             fpCurLogFile.write('%s failed with exit code %s \nstderr %s' % (cmd, statusCode, stderr))
             print('Skipping %s' % (expFile))
-
             cmd = '/usr/bin/rm -f %s/%s ' % (inputDir, expFile)
             print(cmd)
             result = subprocess.run(cmd, shell=True, capture_output=True, text=True)

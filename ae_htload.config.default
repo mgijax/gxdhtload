@@ -51,10 +51,11 @@ LOAD_QC_SH=${GXDHTLOAD}/bin/exptQC.sh
 
 export LOAD_QC_SH
 
-BASE_EXP_URL="https://ftp.ebi.ac.uk/biostudies/fire"
+BASE_EXP_URL1="https://ftp.ebi.ac.uk/biostudies/fire"
+BASE_EXP_URL2="https://ftp.ebi.ac.uk/pub/databases/biostudies"
 BASE_SAMP_URL="https://www.ebi.ac.uk/biostudies/files/"
 
-export BASE_EXP_URL BASE_SAMP_URL
+export BASE_EXP_URL1 BASE_EXP_URL2 BASE_SAMP_URL
 
 QC_RPT=${RPTDIR}/ae_htload_qc.rpt
 QC_LOGFILE=${LOGDIR}/exptQC.log
