@@ -154,7 +154,7 @@ touch ${LOG}
 
 echo 'Running mirror_ae.py'  | tee -a ${LOG}
 date | tee -a ${LOG}
-${PYTHON} mirror_ae.py >> ${LOG}
+${PYTHON} -W "igmore" mirror_ae.py >> ${LOG}
 STAT=$?
 echo "STAT: ${STAT}"
 

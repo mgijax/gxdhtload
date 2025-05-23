@@ -1094,14 +1094,14 @@ def processSampleBcp(sampleList, # list of samples for current experiment
             
             for keyValue in tokens:
                 key, value = str.split(keyValue, ':::')
-                value = value.replace('\\', '\\\\')
-                value = value.replace('#', '\#')
-                value = value.replace('?', '\?')
-                value = value.replace('\n', '\\n')
-                key = key.replace('\\', '\\\\')
-                key = key.replace('#', '\#')
-                key = key.replace('?', '\?')
-                key = key.replace('\n', '\\n')
+                value = value.replace('\\', r'\\\\')
+                value = value.replace('#', r'\#')
+                value = value.replace('?', r'\?')
+                value = value.replace('\n', r'\\n')
+                key = key.replace('\\', r'\\\\')
+                key = key.replace('#', r'\#')
+                key = key.replace('?', r'\?')
+                key = key.replace('\n', r'\\n')
 
                 # replace em-dash(unicode) with two en-dash
                 value = value.replace(b'\xe2\x80\x94'.decode('utf-8'), '--')

@@ -1,8 +1,14 @@
+TAG: gxdhtload-6-0-25-9
+DATE: 05/23/2025
+STAFF: lec
+wts2-1669/e4g-264/Python 3.13
+	modified:   bin/ae_htload.sh
+        modified:   bin/geo_htload.py
+
 TAG: gxdhtload-6-0-25-8
 TAG: gxdhtload-6-0-25-7
 DATE: 05/14/2025
 STAFF: lec
-CHANGES: 
 wts2-1664/e4g-256 - ae_htload.config.default/BASE_EXPT_URL changed
         modified:   ae_htload.config.default
         modified:   bin/mirror_ae.py
