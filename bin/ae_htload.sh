@@ -196,7 +196,7 @@ fi
 #  run the load
 #
 echo 'Running ae_htload.py'  | tee -a ${LOG_DIAG}
-${PYTHON} ${GXDHTLOAD}/bin/ae_htload.py >> ${LOG_DIAG}
+${PYTHON} -W "igmore" ${GXDHTLOAD}/bin/ae_htload.py >> ${LOG_DIAG}
 STAT=$?
 checkStatus ${STAT} "${GXDHTLOAD}/bin/ae_htload.py"
 
