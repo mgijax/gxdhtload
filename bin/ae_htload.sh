@@ -154,7 +154,7 @@ touch ${LOG}
 
 echo 'Running mirror_ae.py'  | tee -a ${LOG}
 date | tee -a ${LOG}
-${PYTHON} -W "ignore" mirror_ae.py >> ${LOG}
+${PYTHON} mirror_ae.py >> ${LOG}
 STAT=$?
 echo "STAT: ${STAT}"
 
@@ -196,7 +196,7 @@ fi
 #  run the load
 #
 echo 'Running ae_htload.py'  | tee -a ${LOG_DIAG}
-${PYTHON} -W "ignore" ${GXDHTLOAD}/bin/ae_htload.py >> ${LOG_DIAG}
+${PYTHON} ${GXDHTLOAD}/bin/ae_htload.py >> ${LOG_DIAG}
 STAT=$?
 checkStatus ${STAT} "${GXDHTLOAD}/bin/ae_htload.py"
 

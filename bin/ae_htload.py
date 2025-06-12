@@ -719,7 +719,7 @@ def processSample(fpSampFile, experiment):
         attrList.append(extract_name)
        
         # now add the unit, characteristics and factor key/values 
-        attrRE = re.compile("\[(.+)\]")
+        attrRE = re.compile(r"\[(.+)\]")
         for attr in unitCharFactorHeaderDict:
             r = attrRE.search(attr)
             key = r.group(1)
