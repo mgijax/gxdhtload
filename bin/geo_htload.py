@@ -115,7 +115,7 @@ sampleFileSuffix = os.environ['GEO_SAMPLE_FILE_SUFFIX']
 today = date.today()
 suffix  = '%s.rpt' % today.strftime("%b-%d-%Y")
 
-qcFileName = '%s.%s' % (os.environ['QC_RPT'], suffix)
+qcFileName = '%s' % (os.environ['QC_RPT'])
 fpQcFile = None
 
 # report of gained/lost samples for curated experiments
@@ -1094,14 +1094,14 @@ def processSampleBcp(sampleList, # list of samples for current experiment
             
             for keyValue in tokens:
                 key, value = str.split(keyValue, ':::')
-                value = value.replace('\\', r'\\\\')
-                value = value.replace('#', r'\#')
-                value = value.replace('?', r'\?')
-                value = value.replace('\n', r'\\n')
-                key = key.replace('\\', r'\\\\')
-                key = key.replace('#', r'\#')
-                key = key.replace('?', r'\?')
-                key = key.replace('\n', r'\\n')
+                value = value.replace('\\', '\\\\')
+                value = value.replace('#', '\#')
+                value = value.replace('?', '\?')
+                value = value.replace('\n', '\\n')
+                key = key.replace('\\', '\\\\')
+                key = key.replace('#', '\#')
+                key = key.replace('?', '\?')
+                key = key.replace('\n', '\\n')
 
                 # replace em-dash(unicode) with two en-dash
                 value = value.replace(b'\xe2\x80\x94'.decode('utf-8'), '--')
