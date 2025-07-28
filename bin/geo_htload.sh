@@ -136,7 +136,7 @@ echo "EXP_FILES: ${EXP_FILES}"
 #  run the load
 #
 echo 'Running geo_htload.py'  | tee -a ${LOG_DIAG}
-${PYTHON} ${GXDHTLOAD}/bin/geo_htload.py >> ${LOG_DIAG}
+${PYTHON} -W ignore::SyntaxWarning ${GXDHTLOAD}/bin/geo_htload.py >> ${LOG_DIAG}
 STAT=$?
 checkStatus ${STAT} "${GXDHTLOAD}/bin/geo_htload.py"
 

@@ -1,3 +1,10 @@
+TAG: gxdhtload-6-0-26-3
+DATE: 07/28/2025
+STAFF: lec
+wts2-1669/e4g-264/Python 3.12
+        modified:   bin/ae_htload.sh
+        modified:   bin/geo_htload.sh
+
 TAG: gxdhtload-6-0-26-2
 TAG: gxdhtload-6-0-26-1
 DATE: 07/15/2025
