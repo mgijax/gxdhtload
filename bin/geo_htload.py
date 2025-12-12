@@ -603,9 +603,11 @@ def process(expFile):
             # -- end "if expID in geoExptInDbDict:" ------------------------------
 
             typeList = list(map(str.strip, gdsType.split(';')))
+
             # 'Other' is only used if it is the only term in the typeList
-            if 'Other' in typeList and len(typeList) > 1:
-                skip = 1
+            # wts2-1773/sprt-158/sw:GEO_GXD_HT_Load--make "Other" just another series type
+            #if 'Other' in typeList and len(typeList) > 1:
+            #    skip = 1
 
             if skip != 1:
                 (exptTypeKey, exptType) = processExperimentType(typeList)

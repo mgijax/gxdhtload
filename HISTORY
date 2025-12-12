@@ -1,3 +1,9 @@
+TAG: gxdhtload-6-0-26-4
+DATE: 12/12/2025
+STAFF: lec
+wts2-1773/sprt-158/sw:GEO_GXD_HT_Load--make "Other" just another series type
+        modified:   bin/geo_htload.py
+
 TAG: gxdhtload-6-0-26-3
 DATE: 07/28/2025
 STAFF: lec
