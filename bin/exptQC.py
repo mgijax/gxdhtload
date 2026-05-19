@@ -290,7 +290,7 @@ def writeReport():
         fpQcRpt.write(CRT + 'Total: %s' % len(updateNotInDbList))
 
     if len(updateWithSamplesInDbList):
-        fpQcRpt.write(CRT + CRT + str.center('Update Action, Experiment in Database with Samples',60) + CRT)
+        fpQcRpt.write(CRT + CRT + str.center('Update Action, Experiment in Database with Raw Samples (gxd_htrawsample)',60) + CRT)
         fpQcRpt.write('%-5s  %-20s%s' % ('Line#','Experiment ID', CRT))
         fpQcRpt.write(5*'-' + '  ' + 20*'-' + CRT)
         fpQcRpt.write(''.join(updateWithSamplesInDbList))
