@@ -171,7 +171,7 @@ then
 else
     if [ ${LIVE_RUN} -eq 0 ]
     then
-	echo "No QC errors detected"
+	echo "No QC errors detected\n"
     fi
     RC=0
 fi
